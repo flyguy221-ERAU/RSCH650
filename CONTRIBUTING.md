@@ -1,8 +1,3 @@
----
-
-# 3) CONTRIBUTING.md (drop‑in)
-
-```markdown
 # Contributing
 
 Thanks for your interest!
