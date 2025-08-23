@@ -7,9 +7,9 @@ Interactive Streamlit app + lightweight pipeline to explore NTSB CAROL-derived a
 - System-risk view (derived from findings) with chi-square and odds ratio
 
 ## Quick start
-```bash
-git clone <your-repo-url>
-cd rsch650-ntsb-carol
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
+git clone <repo>
+cd <repo>
+make venv
+make install
+make build   # generates Parquets into data/out
+make run     # launches Streamlit

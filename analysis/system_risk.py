@@ -7,16 +7,19 @@ from typing import Optional, Tuple
 
 SEV_FATAL = {"FATL", "FATAL", "Fatal", "DEAD"}  # normalize as needed
 
+
 @dataclass
 class FilterSpec:
     years: Tuple[int, int] = (2009, 2025)
     include_far_parts: Optional[set[str]] = None  # e.g., {"91","121","135"}
     exclude_rotorcraft: bool = True
 
+
 def _is_fatal(s: pd.Series) -> pd.Series:
     # robust fatal flag across possible encodings
     s = s.astype("string").str.upper().str.strip()
     return s.isin(SEV_FATAL) | (s == "FATL") | (s == "FATAL")
+
 
 def _normalize_system(s: pd.Series) -> pd.Series:
     # Expect a structured “system/component” label your pipeline derives.
@@ -35,39 +38,52 @@ def _normalize_system(s: pd.Series) -> pd.Series:
     s = s.astype("string").str.upper().str.strip()
     return s.map(m).fillna(s.str.title())
 
+
 def filter_event_level(df: pd.DataFrame, spec: FilterSpec) -> pd.DataFrame:
     d = df.copy()
     if "ev_year" in d:
-        d = d[(pd.to_numeric(d["ev_year"], errors="coerce") >= spec.years[0]) &
-              (pd.to_numeric(d["ev_year"], errors="coerce") <= spec.years[1])]
+        d = d[
+            (pd.to_numeric(d["ev_year"], errors="coerce") >= spec.years[0])
+            & (pd.to_numeric(d["ev_year"], errors="coerce") <= spec.years[1])
+        ]
     if spec.include_far_parts and "far_part" in d:
         d = d[d["far_part"].astype("string").isin(spec.include_far_parts)]
     if spec.exclude_rotorcraft and "acft_category" in d:
         d = d[~d["acft_category"].astype("string").str.contains("ROTOR", case=False, na=False)]
     return d
 
-def build_contingency(event_df: pd.DataFrame,
-                      system_col: str = "system_component",
-                      injury_col: str = "ev_highest_injury",
-                      spec: FilterSpec = FilterSpec()) -> pd.DataFrame:
+
+def build_contingency(
+    event_df: pd.DataFrame,
+    system_col: str = "system_component",
+    injury_col: str = "ev_highest_injury",
+    spec: FilterSpec = FilterSpec(),
+) -> pd.DataFrame:
     d = filter_event_level(event_df, spec)
     if system_col not in d or injury_col not in d:
         raise KeyError(f"Missing required columns: {system_col}, {injury_col}")
     d = d[[system_col, injury_col]].copy()
     d["fatal"] = _is_fatal(d[injury_col])
     d["system_bucket"] = _normalize_system(d[system_col])
-    ct = (d.groupby("system_bucket")["fatal"]
-            .agg(total="count", fatals="sum")
-            .assign(pct_fatal=lambda x: np.where(x["total"]>0, 100*x["fatals"]/x["total"], np.nan))
-            .sort_values("pct_fatal", ascending=False)
-            .reset_index())
+    ct = (
+        d.groupby("system_bucket")["fatal"]
+        .agg(total="count", fatals="sum")
+        .assign(
+            pct_fatal=lambda x: np.where(x["total"] > 0, 100 * x["fatals"] / x["total"], np.nan)
+        )
+        .sort_values("pct_fatal", ascending=False)
+        .reset_index()
+    )
     return ct
 
-def chisq_table(event_df: pd.DataFrame,
-                spec: FilterSpec = FilterSpec(),
-                flight_control_label: str = "Flight Control",
-                system_col: str = "system_component",
-                injury_col: str = "ev_highest_injury") -> pd.DataFrame:
+
+def chisq_table(
+    event_df: pd.DataFrame,
+    spec: FilterSpec = FilterSpec(),
+    flight_control_label: str = "Flight Control",
+    system_col: str = "system_component",
+    injury_col: str = "ev_highest_injury",
+) -> pd.DataFrame:
     d = filter_event_level(event_df, spec)
     d = d[[system_col, injury_col]].dropna().copy()
     d["fatal"] = _is_fatal(d[injury_col])
@@ -79,6 +95,6 @@ def chisq_table(event_df: pd.DataFrame,
     c = int((~d["is_fc"] & d["fatal"]).sum())
     e = int((~d["is_fc"] & ~d["fatal"]).sum())
     return pd.DataFrame(
-        {"Fatal":[a,c], "Nonfatal":[b,e]},
-        index=[flight_control_label, "Other systems"]
+        {"Fatal": [a, c], "Nonfatal": [b, e]},
+        index=[flight_control_label, "Other systems"],
     )

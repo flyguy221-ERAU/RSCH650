@@ -52,3 +52,12 @@ clean:
 	find . -name "__pycache__" -type d -prune -exec rm -rf {} +; \
 	find . -name "*.pyc" -delete; \
 	rm -rf .pytest_cache
+
+lint:
+	. .venv/bin/activate && ruff check .
+
+format:
+	. .venv/bin/activate && black .
+
+hooks:
+	. .venv/bin/activate && pre-commit install
