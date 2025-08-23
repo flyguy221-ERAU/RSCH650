@@ -1,9 +1,23 @@
 cff-version: 1.2.0
-title: "NTSB CAROL / eADMS Audit Dashboard"
+message: "If you use this software, please cite it as below."
+title: "RSCH650 – NTSB/CAROL Accident Analytics (Streamlit)"
+type: software
 authors:
   - family-names: Feagan
-    given-names: Jeremy
-date-released: 2025-08-23
-version: 0.1.0
+    given-names: Jeremy Scott
+    orcid: "https://orcid.org/0000-0000-0000-0000"  # Replace with actual ORCID if available
+    email: "jeremy.feagan@gmail.com"
+repository-code: "https://github.com/<YOUR_GITHUB_USERNAME>/RSCH650-NTSB-CAROL-Accident-Analytics"
 license: MIT
-repository-code: https://github.com/<you>/rsch650
+version: 1.0.0
+date-released: 2025-08-23
+abstract: |
+  A Streamlit app and Python data pipeline for analyzing NTSB/CAROL aviation accident data.
+  This project supports aviation safety research within the Embry-Riddle RSCH650 course,
+  providing reproducible analytics, statistical summaries, and interactive visualizations.
+keywords:
+  - aviation safety
+  - ntsb
+  - accident analysis
+  - streamlit
+  - data analytics
