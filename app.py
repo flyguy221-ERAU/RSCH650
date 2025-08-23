@@ -13,43 +13,32 @@ from scipy.stats import chi2_contingency
 
 st.set_page_config(page_title="CAROL / eADMS Audit", layout="wide")
 
-# --- 1) Map finding rows -> system buckets --------------------
+# Precompile and document precedence
 SYSTEM_PATTERNS = [
-    # (bucket name, list of regexes to search in category/description)
-    ("Flight Controls", [
-        r"\bflight control", r"\bailer", r"\belevat", r"\brudder",
-        r"\btrim\b", r"\bflap", r"\bspoiler", r"\bslat", r"\bcontrol column|\byoke\b|\bstick\b",
-        r"\bservo\b", r"\bactuator\b(?!\s*fuel)", r"\bcontrol\s*cable", r"\bautopilot\b"
-    ]),
-    ("Powerplant/Propulsion", [
-        r"\bpower plant|\bpowerplant|\bengine", r"\bpropeller", r"\bturbo(charger)?",
-        r"\bcompressor\b", r"\bfuel (control|metering|nozzle|pump)", r"\bignition\b"
-    ]),
-    ("Hydraulic/Pneumatic", [
-        r"\bhydraul", r"\bpneumat", r"\baccumulator\b", r"\bactuator\b"
-    ]),
-    ("Avionics/Electrical", [
-        r"\bavionic", r"\belectri", r"\bbus\b", r"\bEFIS\b|\bPFD\b|\bMFD\b|\bFMS\b|\bADC\b|\bIRS\b",
-        r"\bradio\b", r"\btransponder\b", r"\bantenna\b"
-    ]),
-    ("Landing Gear/Brakes", [
-        r"\blanding gear|\bgear\b", r"\bbrake", r"\btire\b|\bwheel\b|\bstrut\b"
-    ]),
-    ("Airframe/Structures", [
-        r"\bstructure|\bairframe|\bfuselage|\bwing\b|\bempennage\b|\bspar\b|\brib\b|\bskin\b"
-    ]),
-    ("Fluids/Fuel/Oil", [
-        r"\bfuel\b", r"\boil\b", r"\bhydraul"
-    ]),
+    # NOTE: 'autopilot' lives here on purpose so it maps to Flight Controls.
+    ("Flight Controls", [r"\bflight control", r"\bailer", r"\belevat", r"\brudder",
+                         r"\btrim\b", r"\bflap", r"\bspoiler", r"\bslat",
+                         r"\b(control column|yoke|stick)\b",
+                         r"\bservo\b", r"\bactuator\b(?!\s*fuel)", r"\bcontrol\s*cable",
+                         r"\bautopilot\b"]),
+    ("Powerplant/Propulsion", [r"\b(power ?plant|engine)\b", r"\bpropeller\b", r"\bturbo(charger)?\b",
+                               r"\bcompressor\b", r"\bfuel (control|metering|nozzle|pump)\b", r"\bignition\b"]),
+    ("Hydraulic/Pneumatic", [r"\bhydraul", r"\bpneumat", r"\baccumulator\b", r"\bactuator\b"]),
+    ("Avionics/Electrical", [r"\bavionic", r"\belectri", r"\bbus\b",
+                             r"\b(EFIS|PFD|MFD|FMS|ADC|IRS)\b",
+                             r"\bradio\b", r"\btransponder\b", r"\bantenna\b"]),
+    ("Landing Gear/Brakes", [r"\blanding gear|\bgear\b", r"\bbrake", r"\btire\b|\bwheel\b|\bstrut\b"]),
+    ("Airframe/Structures", [r"\b(structure|airframe|fuselage|wing|empennage|spar|rib|skin)\b"]),
+    ("Fluids/Fuel/Oil", [r"\bfuel\b", r"\boil\b", r"\bhydraul"]),
 ]
+SYSTEM_PATTERNS = [(name, [re.compile(p, re.I) for p in pats]) for name, pats in SYSTEM_PATTERNS]
 
 def _first_match_bucket(cat: str, desc: str | None = None) -> str | None:
     text = (cat or "")
     if desc:
         text += " " + desc
-    text = text.lower()
     for bucket, pats in SYSTEM_PATTERNS:
-        if any(re.search(p, text) for p in pats):
+        if any(p.search(text) for p in pats):
             return bucket
     return None
 
