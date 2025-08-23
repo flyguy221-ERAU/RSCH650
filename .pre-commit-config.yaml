@@ -16,7 +16,7 @@ repos:
       - id: trailing-whitespace
       - id: check-yaml
   -   repo: https://github.com/jazzband/pip-tools
-      rev: v7.5.0
+      rev: v7.5.0 # run with pre-commit autoupdate --
       hooks:
       -   id: pip-compile
           args: ["--generate-hashes", "--upgrade"]
