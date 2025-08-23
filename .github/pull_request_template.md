@@ -2,7 +2,7 @@
 
 ## 📌 Description
 
-Please include a summary of the change and the related issue.  
+Please include a summary of the change and the related issue.
 Also, briefly explain the motivation and context.
 
 Fixes # (issue)
