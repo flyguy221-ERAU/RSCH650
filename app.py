@@ -538,13 +538,6 @@ with tab4:
 
         # Stats
         if stats:
-            st.markdown("**Odds ratio (Fatal odds: Flight Controls vs Other)**")
-            st.write({
-                "odds_ratio": round(stats["odds_ratio_FC_vs_Other"], 3),
-                "95% CI": (round(stats["or_95CI_low"], 3), round(stats["or_95CI_high"], 3)),
-            })
-        # Stats
-        if stats:
             st.markdown("**Chi-square test (independence)**")
             st.write({
                 "chi2": None if stats["chi2"] is None else round(stats["chi2"], 4),
