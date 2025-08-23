@@ -3,6 +3,11 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Ignore virtual environment folder
+ntsb_env/
+data/raw/
+
+
 # C extensions
 *.so
 
