@@ -3,10 +3,18 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-# Ignore virtual environment folder
+# Data
 ntsb_env/
 data/raw/
+data/out/
+!data/raw/.keep
 
+# Streamlit
+.streamlit/
+
+#OS/IDE
+.DS_Store
+.vscode/
 
 # C extensions
 *.so
