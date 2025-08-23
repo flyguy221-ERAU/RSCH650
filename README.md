@@ -1,5 +1,8 @@
 # RSCH650 – NTSB/CAROL Accident Analytics (Streamlit)
 
+![Lint](https://github.com/flyguy221-ERAU/RSCH650/actions/workflows/pre-commit.yml/badge.svg)
+![Tests](https://github.com/flyguy221-ERAU/RSCH650/actions/workflows/pytest.yml/badge.svg)
+
 A Streamlit app and data pipeline for analyzing NTSB/CAROL accident data.
 Focus areas:
 - Event-level accident trends (year, severity, make/model)

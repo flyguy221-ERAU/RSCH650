@@ -1,4 +1,4 @@
-name: pytest
+name: Tests (pytest)
 
 on:
   push:
@@ -13,6 +13,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
