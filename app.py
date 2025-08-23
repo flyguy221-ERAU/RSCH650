@@ -529,25 +529,23 @@ with tab4:
                 use_container_width=True
             )
 
-            # Download
-            st.download_button(
-                "Download system-bucket table (CSV)",
-                data=ct.to_csv(index=False).encode("utf-8"),
-                file_name="system_bucket_fatality_rates.csv",
-                mime="text/csv"
-            )
+        # Downloads
+        cdl, xdl = st.columns(2)
+        with cdl:
+            st.download_button("Download system bucket table (CSV)",
+                               data=ct.to_csv(index=False).encode("utf-8"),
+                               file_name="system_bucket_fatality.csv",
+                               mime="text/csv")
+        with xdl:
+            st.download_button("Download 2x2 table (CSV)",
+                               data=xt.to_csv().encode("utf-8"),
+                               file_name="flight_controls_2x2.csv",
+                               mime="text/csv")
 
         # 2×2 table
         if not xt.empty:
             st.markdown("**Flight Controls vs Other — Fatal vs Nonfatal (2×2)**")
             st.dataframe(xt, use_container_width=True)
-
-            st.download_button(
-                "Download 2x2 table (CSV)",
-                data=xt.to_csv().encode("utf-8"),
-                file_name="fc_vs_other_2x2.csv",
-                mime="text/csv"
-            )
 
         # Stats
         if stats:
@@ -556,25 +554,29 @@ with tab4:
                 "odds_ratio": round(stats["odds_ratio_FC_vs_Other"], 3),
                 "95% CI": (round(stats["or_95CI_low"], 3), round(stats["or_95CI_high"], 3)),
             })
+        # Stats
+        if stats:
+            st.markdown("**Chi-square test (independence)**")
+            st.write({
+                "chi2": None if stats["chi2"] is None else round(stats["chi2"], 4),
+                "df": stats["df"],
+                "p_value": None if stats["p_value"] is None else f'{stats["p_value"]:.4g}',
+            })
+            st.markdown("**Odds ratio (Fatal odds: Flight Controls vs Other)**")
+            st.write({
+                "odds_ratio": round(stats["odds_ratio_FC_vs_Other"], 3),
+                "95% CI": (round(stats["or_95CI_low"], 3), round(stats["or_95CI_high"], 3)),
+            })
 
-            if stats.get("chi2") is None:
-                st.warning(
-                    "Chi-square not computed: at least one row or column in the 2×2 table sums to zero "
-                    "(no events in a group or no fatals/nonfatals under current filters)."
-                )
-            else:
-                st.markdown("**Chi-square test (independence)**")
-                st.write({
-                    "chi2": round(stats["chi2"], 4),
-                    "df": stats["df"],
-                    "p_value": f'{stats["p_value"]:.4g}',
-                })
-
-                # Expected counts and standardized residuals (optional display)
+            # Optional: expected counts + residuals
+            if stats["expected_counts"] is not None:
                 exp_df = pd.DataFrame(stats["expected_counts"],
-                                      index=xt.index, columns=xt.columns).round(2)
-                st.expander("Expected counts (under independence)").dataframe(exp_df, use_container_width=True)
+                                      index=xt.index, columns=xt.columns).round(1)
+                st.markdown("**Expected counts (under independence)**")
+                st.dataframe(exp_df, use_container_width=True)
 
-                resid = pd.DataFrame(stats["std_residuals"],
-                                     index=xt.index, columns=xt.columns).round(2)
-                st.expander("Standardized residuals").dataframe(resid, use_container_width=True)
+            if stats["std_residuals"] is not None:
+                resid_df = pd.DataFrame(stats["std_residuals"],
+                                        index=xt.index, columns=xt.columns).round(2)
+                st.markdown("**Standardized residuals**")
+                st.dataframe(resid_df, use_container_width=True)
