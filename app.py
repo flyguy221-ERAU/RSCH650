@@ -102,81 +102,70 @@ def event_level_with_system_flags(event_f: pd.DataFrame, finding_f: pd.DataFrame
 from scipy.stats import chi2_contingency
 
 def system_risk_tables(event_f: pd.DataFrame, finding_f: pd.DataFrame):
-    """
-    Returns:
-      ct   : by-system bucket summary (fatals, total, pct_fatal)
-      xt   : 2x2 table (Flight controls vs Other) × (Nonfatal, Fatal)
-      stats: dict with chi2, df, p_value (when valid), odds ratio + CI, expected counts, residuals
-    """
-    # --- roll up ---
     evx = event_level_with_system_flags(event_f, finding_f)
     if evx.empty or "ev_highest_injury" not in evx.columns:
         return pd.DataFrame(), pd.DataFrame(), {}
 
-    # --- by-system bucket contingency (event level, "top" system per event) ---
+    # --- System bucket contingency (event-level) ---
     ct = pd.DataFrame()
     if "system_bucket" in evx.columns:
         tmp = evx.dropna(subset=["system_bucket"]).copy()
         fat_bool = tmp["ev_highest_injury"].astype("string").str.upper().eq("FATL")
         tmp["is_fatal"] = np.where(fat_bool.fillna(False), 1, 0)
+
         ct = (tmp.groupby("system_bucket", dropna=False)
-                .agg(fatals=("is_fatal","sum"), total=("is_fatal","count"))
+                .agg(fatals=("is_fatal", "sum"),
+                     total =("is_fatal", "count"))
                 .reset_index())
-        ct["pct_fatal"] = np.where(ct["total"]>0, 100.0*ct["fatals"]/ct["total"], 0.0)
+        ct["pct_fatal"] = np.where(ct["total"] > 0, 100.0 * ct["fatals"] / ct["total"], 0.0)
         ct = ct.sort_values("pct_fatal", ascending=False, kind="mergesort")
 
-    # --- 2×2: Flight controls vs Other × Fatal vs Nonfatal ---
+    # --- 2×2: Flight Controls vs Other × Fatal vs Nonfatal ---
     xt = evx.copy()
     fat_bool_all = xt["ev_highest_injury"].astype("string").str.upper().eq("FATL")
     xt["is_fatal"] = fat_bool_all.fillna(False)
     xt["is_fc"]    = xt["has_flight_controls"].fillna(False).astype(bool)
 
     xt = pd.crosstab(xt["is_fc"], xt["is_fatal"])
-    # make sure both rows/cols exist (even if zeros)
     xt = xt.reindex(index=[False, True], columns=[False, True], fill_value=0)
-    # pretty labels
     xt.index = ["Other systems", "Flight controls"]
     xt.columns = ["Nonfatal", "Fatal"]
 
     stats_payload = {}
-    # If any row or column is all zeros, chi-square is undefined; guard it.
-    row_sums = xt.sum(axis=1).to_numpy()
-    col_sums = xt.sum(axis=0).to_numpy()
-    chi2_ok = (row_sums > 0).all() and (col_sums > 0).all()
+    try:
+        from scipy.stats import chi2_contingency
+        chi2, p, dof, expected = chi2_contingency(xt.values, correction=False)
+        # If any expected is zero, raise to fallback
+        if np.any(expected == 0):
+            raise ValueError("Expected count of zero.")
+        # Odds ratio (Haldane–Anscombe)
+        a, b = xt.loc["Other systems",  ["Nonfatal","Fatal"]].to_numpy()
+        c, d = xt.loc["Flight controls",["Nonfatal","Fatal"]].to_numpy()
+        a2, b2, c2, d2 = a+0.5, b+0.5, c+0.5, d+0.5
+        or_ = (d2 / c2) / (b2 / a2)
+        se  = np.sqrt(1/a2 + 1/b2 + 1/c2 + 1/d2)
+        lo, hi = np.exp(np.log(or_) - 1.96*se), np.exp(np.log(or_) + 1.96*se)
 
-    # odds ratio with Haldane–Anscombe correction (always safe to compute)
-    a, b = xt.loc["Other systems",  ["Nonfatal","Fatal"]].to_numpy()
-    c, d = xt.loc["Flight controls",["Nonfatal","Fatal"]].to_numpy()
-    a2, b2, c2, d2 = a+0.5, b+0.5, c+0.5, d+0.5
-    or_val = (d2/c2) / (b2/a2)
-    se_log_or = np.sqrt(1/a2 + 1/b2 + 1/c2 + 1/d2)
-    log_or = np.log(or_val)
-    or_lo = float(np.exp(log_or - 1.96*se_log_or))
-    or_hi = float(np.exp(log_or + 1.96*se_log_or))
-
-    if chi2_ok:
-        chi2, p, dof, expected = chi2_contingency(xt.to_numpy(), correction=False)
-        expected = np.asarray(expected, dtype=float)
-        resid = (xt.to_numpy() - expected) / np.sqrt(np.where(expected==0, np.nan, expected))
-        stats_payload.update({
-            "chi2": float(chi2),
-            "df": int(dof),
-            "p_value": float(p),
-            "expected_counts": expected,
-            "std_residuals": resid,
-        })
-    else:
-        # no chi-square; still return useful info
-        stats_payload.update({
+        # Standardized residuals
+        resid = (xt.values - expected) / np.sqrt(expected)
+        stats_payload = {
+            "chi2": chi2, "df": dof, "p_value": p,
+            "odds_ratio_FC_vs_Other": or_, "or_95CI_low": lo, "or_95CI_high": hi,
+            "expected_counts": expected, "std_residuals": resid,
+        }
+    except Exception:
+        # Graceful fallback: show OR only (with H–A correction)
+        a, b = xt.loc["Other systems",  ["Nonfatal","Fatal"]].to_numpy()
+        c, d = xt.loc["Flight controls",["Nonfatal","Fatal"]].to_numpy()
+        a2, b2, c2, d2 = a+0.5, b+0.5, c+0.5, d+0.5
+        or_ = (d2 / c2) / (b2 / a2)
+        se  = np.sqrt(1/a2 + 1/b2 + 1/c2 + 1/d2)
+        lo, hi = np.exp(np.log(or_) - 1.96*se), np.exp(np.log(or_) + 1.96*se)
+        stats_payload = {
             "chi2": None, "df": None, "p_value": None,
+            "odds_ratio_FC_vs_Other": or_, "or_95CI_low": lo, "or_95CI_high": hi,
             "expected_counts": None, "std_residuals": None,
-        })
-
-    stats_payload.update({
-        "odds_ratio_FC_vs_Other": float(or_val),
-        "or_95CI_low": or_lo,
-        "or_95CI_high": or_hi,
-    })
+        }
 
     return ct, xt, stats_payload
 
