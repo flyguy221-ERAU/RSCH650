@@ -1,42 +1,54 @@
-# Use bash for convenience
+# Use bash
 SHELL := /bin/bash
 
-.PHONY: help venv install freeze run app test clean
+# Virtual env paths
+VENV := .venv
+PY   := $(VENV)/bin/python
+PIP  := $(VENV)/bin/pip
+
+.PHONY: help venv install freeze run app test clean build
 
 help:
 	@echo "make venv      - create virtual env (.venv)"
-	@echo "make install   - install dependencies from requirements.txt"
+	@echo "make install   - install dependencies from requirements.txt into .venv"
 	@echo "make freeze    - write exact versions to requirements.txt"
+	@echo "make build     - run pipeline (main.py) to generate Parquets"
 	@echo "make run       - run Streamlit app"
 	@echo "make test      - run pytest"
-	@echo "make clean     - remove caches and build artifacts"
+	@echo "make clean     - remove caches"
 
-venv:
-	python3 -M venv .venv
-	@echo "Run: source .venv/bin/activate"
+# Create venv once
+$(VENV)/bin/python:
+	python3 -m venv $(VENV)
+	$(PIP) install -U pip
 
-install:
-	. .venv/bin/activate && $(PY) -m pip install -U pip && \
-	$(PY) -m pip install -r requirements.txt
+venv: $(VENV)/bin/python
+	@echo "Virtual env ready at $(VENV)"
 
+# Install requirements into venv
+install: $(VENV)/bin/python
+	$(PIP) install -r requirements.txt
 
-freeze:
-	source .venv/bin/activate && \
-	python -m pip freeze > requirements.txt
+# Freeze exact versions
+freeze: $(VENV)/bin/python
+	$(PIP) freeze > requirements.txt
 
-run:
-	. .venv/bin/activate && streamlit run app.py
+# Build Parquets by running your pipeline
+build: $(VENV)/bin/python install
+	$(PY) main.py
+
+# Run Streamlit
+run: $(VENV)/bin/python install
+	$(PY) -m streamlit run app.py
 
 app: run
 
-test:
-	. .venv/bin/activate && pytest -q
+# Run tests
+test: $(VENV)/bin/python install
+	$(PY) -m pytest -q
 
+# Clean caches
 clean:
 	find . -name "__pycache__" -type d -prune -exec rm -rf {} +; \
 	find . -name "*.pyc" -delete; \
 	rm -rf .pytest_cache
-
-build:
-	# runs your pipeline to generate Parquets into data/out
-	. .venv/bin/activate && $(PY) main.py
