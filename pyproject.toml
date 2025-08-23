@@ -1,3 +1,12 @@
+[project]
+name = "rsch650-ntsb-analytics"
+version = "0.1.0"
+description = "Streamlit app and data pipeline for analyzing NTSB/CAROL aviation accident data."
+authors = [{ name = "Jeremy Scott Feagan", email = "jeremy.feagan@gmail.com" }]
+license = { text = "MIT" }
+requires-python = ">=3.11"
+dependencies = []
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
