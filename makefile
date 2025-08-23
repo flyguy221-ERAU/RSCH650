@@ -36,6 +36,9 @@ venv: $(VENV)/bin/python
 install: $(VENV)/bin/python
 	$(PIP) install -r requirements.txt
 
+install-dev: $(VENV)/bin/python
+	$(PIP) install -r requirements.txt -r requirements-dev.txt
+
 # Freeze into requirements.txt (overwrite)
 freeze: $(VENV)/bin/python
 	$(PIP) freeze > requirements.txt
