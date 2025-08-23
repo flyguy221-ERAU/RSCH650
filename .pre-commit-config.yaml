@@ -15,7 +15,9 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
--   repo: https://github.com/jazzband/pip-tools
-    rev: v7.4.1
-    hooks:
-    -   id: pip-compile
+  -   repo: https://github.com/jazzband/pip-tools
+      rev: v7.5.0
+      hooks:
+      -   id: pip-compile
+          args: ["--generate-hashes", "--upgrade"]
+          files: ^requirements.in$
