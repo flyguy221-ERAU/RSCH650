@@ -7,7 +7,16 @@ line-length = 100
 target-version = "py311"
 select = ["E","F","I","B","UP","SIM","RUF"]
 ignore = ["E203"]  # keep Black compatible
-exclude = ["data/", ".venv/", "docs/"]
+exclude = '''
+/(
+  \.venv
+  | build
+  | dist
+  | \.git
+  | \.mypy_cache
+  | \.pytest_cache
+)/
+'''
 
 [tool.ruff.isort]
 known-first-party = ["analysis","loaders","labelers","decoder","normalize","lookups","audit","config"]
