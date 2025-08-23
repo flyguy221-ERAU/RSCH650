@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple, Optional
 
 SEV_FATAL = {"FATL", "FATAL", "Fatal", "DEAD"}  # normalize as needed
 
@@ -13,6 +13,13 @@ class FilterSpec:
     years: Tuple[int, int] = (2009, 2025)
     include_far_parts: Optional[set[str]] = None  # e.g., {"91","121","135"}
     exclude_rotorcraft: bool = True
+    severity: Optional[list[str]] = None
+    phases: Optional[list[str]] = None
+    occurrences: Optional[list[str]] = None
+    defining_only: bool = False
+    makes: Optional[list[str]] = None
+    model_contains: Optional[str] = None
+    parts: Optional[list[str]] = None
 
 
 def _is_fatal(s: pd.Series) -> pd.Series:
