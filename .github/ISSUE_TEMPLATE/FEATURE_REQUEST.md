@@ -1,0 +1,23 @@
+---
+name: "✨ Feature Request"
+about: Suggest a new feature or enhancement
+title: "[FEATURE] Short description of the feature"
+labels: enhancement
+assignees: ''
+
+---
+
+## ✨ Describe the Feature
+A clear and concise description of what you'd like to see added.
+
+## 🧩 Why Is This Needed?
+Explain why this feature is important for users or researchers.
+
+## 🛠 Proposed Solution
+If you have any ideas on implementation, share them here.
+
+## 📸 Screenshots or References
+Add any relevant visuals, research papers, or links.
+
+## 📌 Additional Context
+Add any other context about the request here.
