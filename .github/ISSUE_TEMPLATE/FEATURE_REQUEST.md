@@ -1,23 +1,30 @@
 ---
-name: "✨ Feature Request"
+name: Feature Request
 about: Suggest a new feature or enhancement
-title: "[FEATURE] Short description of the feature"
-labels: enhancement
+title: "[FEATURE] <short description>"
+labels: ["enhancement", "feature"]
 assignees: ''
+---
+
+## 📌 Description
+Clearly describe the feature you want to add.
+Explain *why it matters* for your RSCH650 project or beyond.
 
 ---
 
-## ✨ Describe the Feature
-A clear and concise description of what you'd like to see added.
+## 🎯 Acceptance Criteria
+- [ ] Specific conditions that must be met
+- [ ] Example: "Injury detail field appears in event-level parquet output"
 
-## 🧩 Why Is This Needed?
-Explain why this feature is important for users or researchers.
+---
 
-## 🛠 Proposed Solution
-If you have any ideas on implementation, share them here.
+## 📝 Context
+Link related issues, PRs, or datasets.
+Example: "Supports #2 System Risk analysis"
 
-## 📸 Screenshots or References
-Add any relevant visuals, research papers, or links.
+---
 
-## 📌 Additional Context
-Add any other context about the request here.
+## ✅ Checklist
+- [ ] I searched existing issues to avoid duplication
+- [ ] I provided enough context for contributors to understand
+- [ ] This is scoped and actionable
