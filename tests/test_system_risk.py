@@ -1,5 +1,6 @@
 import pandas as pd
-from analysis.system_risk import build_contingency, chisq_table, FilterSpec
+
+from analysis.system_risk import FilterSpec, build_contingency, chisq_table
 
 
 def _toy():

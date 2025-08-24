@@ -1,13 +1,14 @@
 import pandas as pd
+
+from audit import quick_audit
 from config import (
     OUT_EVENT_LEVEL,
     OUT_FINDING_LEVEL,
     OUT_FINDING_LEVEL_LABELED,
     OUT_SEQ_LABELED,
 )
-from loaders import read_events, read_findings, read_aircraft, read_events_sequence
+from loaders import read_aircraft, read_events, read_events_sequence, read_findings
 from lookups import build_finding_lookup, build_occurrence_lookup, build_phase_lookup
-from audit import quick_audit
 
 
 def main():
@@ -18,15 +19,11 @@ def main():
     seq = read_events_sequence()
 
     # ---- Event-level (first aircraft per event)
-    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(
-        subset=["ev_id"], keep="first"
-    )
+    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(subset=["ev_id"], keep="first")
     event_level = events.merge(aircraft_per_event, on="ev_id", how="left")
 
     # ---- Finding-level (1:N to events)
-    finding_level = findings.merge(events, on="ev_id", how="inner").merge(
-        aircraft_per_event, on="ev_id", how="left"
-    )
+    finding_level = findings.merge(events, on="ev_id", how="inner").merge(aircraft_per_event, on="ev_id", how="left")
 
     # ---- Build & join lookups
     finding_lk = build_finding_lookup()
@@ -35,9 +32,7 @@ def main():
     occ_lk = build_occurrence_lookup()
     phase_lk = build_phase_lookup()
 
-    seq_labeled = seq.merge(occ_lk, on="Occurrence_No", how="left").merge(
-        phase_lk, on="phase_no", how="left"
-    )
+    seq_labeled = seq.merge(occ_lk, on="Occurrence_No", how="left").merge(phase_lk, on="phase_no", how="left")
 
     # ---- Save outputs
     event_level.to_parquet(OUT_EVENT_LEVEL, index=False)

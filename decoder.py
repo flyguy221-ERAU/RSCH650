@@ -1,8 +1,10 @@
 from __future__ import annotations
-import pandas as pd
+
 import re
-from typing import Tuple
 from functools import lru_cache
+
+import pandas as pd
+
 from config import DICT_CSV
 
 WHITELIST = {
@@ -46,11 +48,11 @@ def _is_exact6(t: str) -> bool:  # ######
 
 
 @lru_cache(maxsize=1)
-def build_occ_code_decoders() -> Tuple[dict, dict, dict]:
+def build_occ_code_decoders() -> tuple[dict, dict, dict]:
     dd = _load_dict()
-    occ = dd[
-        (dd["Column_l"] == "occurrence_code") & (dd["meaning"].notna()) & (dd["code_iaids"].notna())
-    ][["code_iaids", "meaning"]].copy()
+    occ = dd[(dd["Column_l"] == "occurrence_code") & (dd["meaning"].notna()) & (dd["code_iaids"].notna())][
+        ["code_iaids", "meaning"]
+    ].copy()
 
     left = occ[occ["code_iaids"].apply(_is_left_family)].copy()
     right = occ[occ["code_iaids"].apply(_is_right_family)].copy()
@@ -61,30 +63,22 @@ def build_occ_code_decoders() -> Tuple[dict, dict, dict]:
     exact["key"] = exact["code_iaids"].str.extract(r"(\d{6})", expand=False)
 
     left3_map = dict(left.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
-    right3_map = dict(
-        right.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values
-    )
-    exact6_map = dict(
-        exact.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values
-    )
+    right3_map = dict(right.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
+    exact6_map = dict(exact.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
     return left3_map, right3_map, exact6_map
 
 
 @lru_cache(maxsize=1)
 def build_phase_numeric_lookup() -> pd.DataFrame:
     dd = _load_dict()
-    m = dd[(dd["Table_l"] == "events_sequence") & (dd["Column_l"] == "phase_no")][
-        ["code_iaids", "meaning"]
-    ].dropna()
+    m = dd[(dd["Table_l"] == "events_sequence") & (dd["Column_l"] == "phase_no")][["code_iaids", "meaning"]].dropna()
     if m.empty:
         m = dd[(dd["Table_l"] == "occurrences") & (dd["Column_l"] == "phase_of_flight")][
             ["code_iaids", "meaning"]
         ].dropna()
     if m.empty:
         return pd.DataFrame(columns=["code_int", "meaning"])
-    code = (
-        m["code_iaids"].str.extract(r"(\d+)$")[0].fillna(m["code_iaids"].str.extract(r"(\d+)")[0])
-    )
+    code = m["code_iaids"].str.extract(r"(\d+)$")[0].fillna(m["code_iaids"].str.extract(r"(\d+)")[0])
     lk = pd.DataFrame(
         {
             "code_int": pd.to_numeric(code, errors="coerce").astype("Int64"),
@@ -95,7 +89,7 @@ def build_phase_numeric_lookup() -> pd.DataFrame:
     return lk.reset_index(drop=True)
 
 
-def decode_occurrence_code(series: pd.Series) -> Tuple[pd.Series, pd.Series, pd.Series]:
+def decode_occurrence_code(series: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
     left3_map, right3_map, exact6_map = build_occ_code_decoders()
     code = _clean_code_str(series)
     code6 = code.str[-6:]

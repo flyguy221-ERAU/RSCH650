@@ -1,15 +1,17 @@
 # app.py
 from __future__ import annotations
-import sys
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import streamlit as st
-import altair as alt
-from dataclasses import dataclass
-from typing import Tuple
-from config import OUT_EVENT_LEVEL, OUT_FINDING_LEVEL_LABELED, OUT_SEQ_LABELED
+
 import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+import altair as alt
+import numpy as np
+import pandas as pd
+import streamlit as st
+
+from config import OUT_EVENT_LEVEL, OUT_FINDING_LEVEL_LABELED, OUT_SEQ_LABELED
 
 st.set_page_config(page_title="CAROL / eADMS Audit", layout="wide")
 
@@ -107,12 +109,7 @@ def add_system_buckets_to_findings(finding_f: pd.DataFrame) -> pd.DataFrame:
 
 # --- 2) Roll up to event level --------------------------------
 def event_level_with_system_flags(event_f: pd.DataFrame, finding_f: pd.DataFrame) -> pd.DataFrame:
-    if (
-        event_f.empty
-        or finding_f.empty
-        or "ev_id" not in event_f.columns
-        or "ev_id" not in finding_f.columns
-    ):
+    if event_f.empty or finding_f.empty or "ev_id" not in event_f.columns or "ev_id" not in finding_f.columns:
         return event_f.copy()
 
     f = add_system_buckets_to_findings(finding_f)
@@ -167,7 +164,7 @@ def system_risk_tables(event_f: pd.DataFrame, finding_f: pd.DataFrame):
         ct["pct_fatal"] = np.where(ct["total"] > 0, 100.0 * ct["fatals"] / ct["total"], 0.0)
         ct = ct.sort_values("pct_fatal", ascending=False, kind="mergesort")
 
-    # --- 2×2: Flight Controls vs Other × Fatal vs Nonfatal ---
+    # --- 2x2: Flight Controls vs Other x Fatal vs Nonfatal ---
     xt = evx.copy()
     fat_bool_all = xt["ev_highest_injury"].astype("string").str.upper().eq("FATL")
     xt["is_fatal"] = fat_bool_all.fillna(False)
@@ -186,7 +183,7 @@ def system_risk_tables(event_f: pd.DataFrame, finding_f: pd.DataFrame):
         # If any expected is zero, raise to fallback
         if np.any(expected == 0):
             raise ValueError("Expected count of zero.")
-        # Odds ratio (Haldane–Anscombe)
+        # Odds ratio (Haldane-Anscombe)
         a, b = xt.loc["Other systems", ["Nonfatal", "Fatal"]].to_numpy()
         c, d = xt.loc["Flight controls", ["Nonfatal", "Fatal"]].to_numpy()
         a2, b2, c2, d2 = a + 0.5, b + 0.5, c + 0.5, d + 0.5
@@ -207,7 +204,7 @@ def system_risk_tables(event_f: pd.DataFrame, finding_f: pd.DataFrame):
             "std_residuals": resid,
         }
     except Exception:
-        # Graceful fallback: show OR only (with H–A correction)
+        # Graceful fallback: show OR only (with H-A correction)
         a, b = xt.loc["Other systems", ["Nonfatal", "Fatal"]].to_numpy()
         c, d = xt.loc["Flight controls", ["Nonfatal", "Fatal"]].to_numpy()
         a2, b2, c2, d2 = a + 0.5, b + 0.5, c + 0.5, d + 0.5
@@ -249,25 +246,21 @@ if str(ROOT) not in sys.path:
 
 # Optional fallback: load pipeline to build Parquet if missing
 def _ensure_parquets():
-    missing = [
-        p
-        for p in [OUT_EVENT_LEVEL, OUT_FINDING_LEVEL_LABELED, OUT_SEQ_LABELED]
-        if not Path(p).exists()
-    ]
+    missing = [p for p in [OUT_EVENT_LEVEL, OUT_FINDING_LEVEL_LABELED, OUT_SEQ_LABELED] if not Path(p).exists()]
     if not missing:
         return
     try:
-        from loaders import (
-            read_events,
-            read_findings,
-            read_aircraft,
-            read_events_sequence,
-        )
         from labelers import (
             build_event_level,
             build_finding_level,
             label_findings,
             label_sequence,
+        )
+        from loaders import (
+            read_aircraft,
+            read_events,
+            read_events_sequence,
+            read_findings,
         )
 
         # Build minimal to satisfy the dashboard
@@ -290,11 +283,7 @@ def _ensure_parquets():
 def load_data():
     _ensure_parquets()
     ev = pd.read_parquet(OUT_EVENT_LEVEL) if Path(OUT_EVENT_LEVEL).exists() else pd.DataFrame()
-    flab = (
-        pd.read_parquet(OUT_FINDING_LEVEL_LABELED)
-        if Path(OUT_FINDING_LEVEL_LABELED).exists()
-        else pd.DataFrame()
-    )
+    flab = pd.read_parquet(OUT_FINDING_LEVEL_LABELED) if Path(OUT_FINDING_LEVEL_LABELED).exists() else pd.DataFrame()
     seq = pd.read_parquet(OUT_SEQ_LABELED) if Path(OUT_SEQ_LABELED).exists() else pd.DataFrame()
 
     for df in (ev, flab, seq):
@@ -357,14 +346,10 @@ with st.sidebar:
     sev_sel = st.multiselect("Highest Injury (event/finding)", sev_opts, default=sev_opts)
 
     # Sequence fields
-    phases = sorted(
-        seq_df.get("phase_meaning", pd.Series(dtype="string")).dropna().unique().tolist()
-    )
+    phases = sorted(seq_df.get("phase_meaning", pd.Series(dtype="string")).dropna().unique().tolist())
     phase_sel = st.multiselect("Phase of Flight (sequence)", phases, default=[])
 
-    occs = sorted(
-        seq_df.get("occurrence_meaning", pd.Series(dtype="string")).dropna().unique().tolist()
-    )
+    occs = sorted(seq_df.get("occurrence_meaning", pd.Series(dtype="string")).dropna().unique().tolist())
     occ_sel = st.multiselect("Occurrence (sequence)", occs, default=[])
 
     def_only = st.checkbox("Defining events only (sequence)", value=False)
@@ -373,9 +358,7 @@ with st.sidebar:
     parts = st.multiselect("FAR Parts", options=["91", "121", "135"], default=["91", "121", "135"])
 
     # Make/model (from finding-level)
-    makes = sorted(
-        finding_df.get("acft_make", pd.Series(dtype="string")).dropna().unique().tolist()
-    )
+    makes = sorted(finding_df.get("acft_make", pd.Series(dtype="string")).dropna().unique().tolist())
     make_sel = st.multiselect("Make (finding-level)", makes, default=[])
     model_sel = st.text_input("Model contains (substring, case-insensitive)", "")
 
@@ -396,7 +379,7 @@ spec = FilterSpec(
 # -------------------------------
 # Lightweight filtering helpers
 # -------------------------------
-def _between_years(df: pd.DataFrame, years: Tuple[int, int]) -> pd.DataFrame:
+def _between_years(df: pd.DataFrame, years: tuple[int, int]) -> pd.DataFrame:
     if df.empty or "ev_year" not in df.columns or years is None:
         return df
     y = pd.to_numeric(df["ev_year"], errors="coerce")
@@ -415,7 +398,7 @@ def apply_filters(event_df, finding_df, seq_df, spec: FilterSpec):
         if "ev_highest_injury" in fl.columns:
             fl = fl[fl["ev_highest_injury"].isin(spec.severity)]
 
-    # FAR part (if you’ve labeled it; handles either numeric or string)
+    # FAR part (if you've labeled it; handles either numeric or string)
     if spec.parts and "far_part" in ev.columns:
         ev = ev[ev["far_part"].astype(str).isin(spec.parts)]
     if spec.parts and "far_part" in fl.columns:
@@ -476,7 +459,7 @@ def build_contingency(ev: pd.DataFrame) -> pd.DataFrame:
 
 def chisq_table(ev: pd.DataFrame) -> pd.DataFrame:
     """
-    2×2 table: Flight Controls vs Other  × Fatal vs Nonfatal
+    2x2 table: Flight Controls vs Other x Fatal vs Nonfatal
     Requires a system column containing 'Flight Controls' bucket.
     """
     system_col = "system_bucket" if "system_bucket" in ev.columns else None
@@ -490,9 +473,9 @@ def chisq_table(ev: pd.DataFrame) -> pd.DataFrame:
 
     ev = ev.copy()
     ev["is_fatal"] = ev["ev_highest_injury"] == "FATL"
-    ev["is_fcs"] = ev[system_col].fillna("").str.contains(
-        "flight control", case=False, na=False
-    ) | ev[system_col].isin(["Flight Controls", "Flight Control", "FLT CTRL"])
+    ev["is_fcs"] = ev[system_col].fillna("").str.contains("flight control", case=False, na=False) | ev[system_col].isin(
+        ["Flight Controls", "Flight Control", "FLT CTRL"]
+    )
 
     xt = pd.crosstab(ev["is_fcs"], ev["is_fatal"])
     # pretty labels
@@ -520,9 +503,7 @@ event_f, finding_f, seq_f = apply_filters(event_df, finding_df, seq_df, spec)
 # -------------------------------
 
 st.title("CAROL / eADMS Audit Dashboard")
-st.caption(
-    f"Loaded rows — events: {len(event_df):,} | findings: {len(finding_df):,} | sequence: {len(seq_df):,}"
-)
+st.caption(f"Loaded rows — events: {len(event_df):,} | findings: {len(finding_df):,} | sequence: {len(seq_df):,}")
 
 if event_df.empty and finding_df.empty and seq_df.empty:
     st.error(
@@ -533,7 +514,7 @@ if event_df.empty and finding_df.empty and seq_df.empty:
 # -------------------------------
 # Tabs
 # -------------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Phase×Occurrence", "Findings", "System Risk"])
+tab1, tab2, tab3, tab4 = st.tabs(["Overview", "PhasexOccurrence", "Findings", "System Risk"])
 
 # ---- Overview tab
 with tab1:
@@ -549,9 +530,7 @@ with tab1:
         st.metric("Sequences (rows)", len(seq_f))
     with c4:
         occ_series = (
-            seq_f["occurrence_meaning"]
-            if "occurrence_meaning" in seq_f.columns
-            else pd.Series(dtype="float64")
+            seq_f["occurrence_meaning"] if "occurrence_meaning" in seq_f.columns else pd.Series(dtype="float64")
         )
         st.metric("Occurrence label coverage", f"{pct_notna(occ_series):.1f}%")
     with c5:
@@ -566,16 +545,14 @@ with tab1:
     st.divider()
     st.write("Use the sidebar to filter the dataset. Other tabs will update automatically.")
 
-# ---- Phase × Occurrence heatmap
+# ---- Phase x Occurrence heatmap
 with tab2:
-    st.subheader("Phase × Occurrence Heatmap (Sequence)")
+    st.subheader("Phase x Occurrence Heatmap (Sequence)")
     if {"phase_meaning", "occurrence_meaning"}.issubset(seq_f.columns):
         top_occ = seq_f["occurrence_meaning"].value_counts().head(25).index.tolist()
         top_phase = seq_f["phase_meaning"].value_counts().head(25).index.tolist()
         heat = (
-            seq_f[
-                seq_f["occurrence_meaning"].isin(top_occ) & seq_f["phase_meaning"].isin(top_phase)
-            ]
+            seq_f[seq_f["occurrence_meaning"].isin(top_occ) & seq_f["phase_meaning"].isin(top_phase)]
             .groupby(["phase_meaning", "occurrence_meaning"])
             .size()
             .reset_index(name="count")
@@ -606,11 +583,7 @@ with tab3:
             .sort_values("_FATL", ascending=False)
             .drop(columns=["_FATL"])
         )
-        top_cats = (
-            ct.head(topN)
-            .reset_index()
-            .melt(id_vars="finding_category", var_name="injury", value_name="count")
-        )
+        top_cats = ct.head(topN).reset_index().melt(id_vars="finding_category", var_name="injury", value_name="count")
         st.altair_chart(
             alt.Chart(top_cats)
             .mark_bar()
@@ -637,9 +610,7 @@ with tab4:
 
         # By-system table + bar
         if ct.empty:
-            st.info(
-                "No system buckets derived. Check that your finding categories/descriptions are present."
-            )
+            st.info("No system buckets derived. Check that your finding categories/descriptions are present.")
         else:
             st.markdown("**By system bucket (event-level, top bucket per event)**")
             st.dataframe(ct, use_container_width=True)
@@ -673,9 +644,9 @@ with tab4:
                 mime="text/csv",
             )
 
-        # 2×2 table
+        # 2x2 table
         if not xt.empty:
-            st.markdown("**Flight Controls vs Other — Fatal vs Nonfatal (2×2)**")
+            st.markdown("**Flight Controls vs Other — Fatal vs Nonfatal (2x2)**")
             st.dataframe(xt, use_container_width=True)
 
         # Stats
@@ -685,7 +656,7 @@ with tab4:
                 {
                     "chi2": None if stats["chi2"] is None else round(stats["chi2"], 4),
                     "df": stats["df"],
-                    "p_value": None if stats["p_value"] is None else f'{stats["p_value"]:.4g}',
+                    "p_value": None if stats["p_value"] is None else f"{stats['p_value']:.4g}",
                 }
             )
             st.markdown("**Odds ratio (Fatal odds: Flight Controls vs Other)**")
@@ -701,15 +672,11 @@ with tab4:
 
             # Optional: expected counts + residuals
             if stats["expected_counts"] is not None:
-                exp_df = pd.DataFrame(
-                    stats["expected_counts"], index=xt.index, columns=xt.columns
-                ).round(1)
+                exp_df = pd.DataFrame(stats["expected_counts"], index=xt.index, columns=xt.columns).round(1)
                 st.markdown("**Expected counts (under independence)**")
                 st.dataframe(exp_df, use_container_width=True)
 
             if stats["std_residuals"] is not None:
-                resid_df = pd.DataFrame(
-                    stats["std_residuals"], index=xt.index, columns=xt.columns
-                ).round(2)
+                resid_df = pd.DataFrame(stats["std_residuals"], index=xt.index, columns=xt.columns).round(2)
                 st.markdown("**Standardized residuals**")
                 st.dataframe(resid_df, use_container_width=True)

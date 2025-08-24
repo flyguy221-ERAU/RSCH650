@@ -1,6 +1,8 @@
-streamlit>=1.35
-pandas>=2.2
-numpy>=1.26
-scipy>=1.14
-statsmodels>=0.14
-altair>=5.2
+pandas
+numpy
+statsmodels
+altair
+streamlit
+scipy
+fastparquet
+pyarrow

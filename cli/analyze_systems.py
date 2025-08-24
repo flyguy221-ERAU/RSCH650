@@ -1,9 +1,11 @@
 # cli/analyze_systems.py
 import argparse
-import pandas as pd
 import json
-from analysis.system_risk import build_contingency, chisq_table, FilterSpec
+
+import pandas as pd
+
 from analysis.logit_models import fit_logit
+from analysis.system_risk import FilterSpec, build_contingency, chisq_table
 
 
 def main():
@@ -17,11 +19,7 @@ def main():
     args = ap.parse_args()
 
     # Load events
-    ev = (
-        pd.read_parquet(args.events)
-        if args.events.endswith(".parquet")
-        else pd.read_csv(args.events)
-    )
+    ev = pd.read_parquet(args.events) if args.events.endswith(".parquet") else pd.read_csv(args.events)
 
     spec = FilterSpec(
         years=(args.start, args.end),

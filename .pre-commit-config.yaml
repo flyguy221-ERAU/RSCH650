@@ -1,23 +1,36 @@
+# .pre-commit-config.yaml
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.1.0
     hooks:
       - id: black
-        args: ["--line-length=100"]
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.12.10
     hooks:
       - id: ruff
-        args: ["--fix"]
+      - id: ruff-format
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-yaml
-  -   repo: https://github.com/jazzband/pip-tools
-      rev: v7.5.0 # run with pre-commit autoupdate --
-      hooks:
-      -   id: pip-compile
-          args: ["--generate-hashes", "--upgrade"]
-          files: ^requirements.in$
+
+  - repo: https://github.com/jazzband/pip-tools
+    rev: v7.5.0
+    hooks:
+      - id: pip-compile
+        files: ^requirements\.in$
+
+  - repo: https://github.com/fpgmaas/deptry
+    rev: "0.23.0"
+    hooks:
+    - id: deptry
+      args: []  # Or [] if no args
+      files: \.py$
+      exclude: ^tests/.*$
+      stages: [pre-commit]
+      name: deptry (check for unused or missing dependencies)
+      description: Check for unused or missing dependencies in requirements.txt

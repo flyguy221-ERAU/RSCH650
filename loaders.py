@@ -1,18 +1,20 @@
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
+
 from config import (
+    AIRCRAFT_COLS,
+    AIRCRAFT_CSV,
     DATA,
     DATE_FORMATS,
-    EVENTS_CSV,
-    FINDINGS_CSV,
-    AIRCRAFT_CSV,
-    EVENTS_SEQUENCE_CSV,
     EVENTS_COLS,
+    EVENTS_CSV,
+    EVENTS_SEQUENCE_CSV,
     FINDINGS_COLS,
-    AIRCRAFT_COLS,
+    FINDINGS_CSV,
     SEQ_COLS,
 )
-from normalize import parse_flexible_datetime, normalize_make_model
+from normalize import normalize_make_model, parse_flexible_datetime
 
 
 def read_events(path: Path = DATA) -> pd.DataFrame:

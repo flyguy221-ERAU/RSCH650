@@ -1,24 +1,17 @@
 import pandas as pd
+
+from decoder import build_phase_numeric_lookup, decode_occurrence_code
 from normalize import split_finding_description
-from decoder import decode_occurrence_code, build_phase_numeric_lookup
 
 
 def build_event_level(events: pd.DataFrame, aircraft: pd.DataFrame) -> pd.DataFrame:
-    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(
-        subset=["ev_id"], keep="first"
-    )
+    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(subset=["ev_id"], keep="first")
     return events.merge(aircraft_per_event, on="ev_id", how="left")
 
 
-def build_finding_level(
-    events: pd.DataFrame, findings: pd.DataFrame, aircraft: pd.DataFrame
-) -> pd.DataFrame:
-    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(
-        subset=["ev_id"], keep="first"
-    )
-    return findings.merge(events, on="ev_id", how="inner").merge(
-        aircraft_per_event, on="ev_id", how="left"
-    )
+def build_finding_level(events: pd.DataFrame, findings: pd.DataFrame, aircraft: pd.DataFrame) -> pd.DataFrame:
+    aircraft_per_event = aircraft.sort_values(["ev_id", "Aircraft_Key"]).drop_duplicates(subset=["ev_id"], keep="first")
+    return findings.merge(events, on="ev_id", how="inner").merge(aircraft_per_event, on="ev_id", how="left")
 
 
 def label_findings(finding_level: pd.DataFrame) -> pd.DataFrame:

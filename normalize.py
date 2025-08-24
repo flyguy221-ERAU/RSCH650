@@ -1,5 +1,6 @@
-import pandas as pd
 import warnings
+
+import pandas as pd
 
 
 def parse_flexible_datetime(s: pd.Series, formats: list[str]) -> pd.Series:

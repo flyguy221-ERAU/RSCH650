@@ -1,6 +1,6 @@
-# Contributing to RSCH650 – NTSB/CAROL Accident Analytics
+# Contributing to RSCH650 - NTSB/CAROL Accident Analytics
 
-First off, thank you for considering contributing to this project! 🙌  
+First off, thank you for considering contributing to this project! 🙌
 Your contributions help improve aviation safety research and reproducibility.
 
 ---
@@ -98,14 +98,14 @@ make test
 
 ## 🤝 Code of Conduct
 
-Be respectful and constructive when interacting with others.  
+Be respectful and constructive when interacting with others.
 This project follows the [Contributor Covenant](https://www.contributor-covenant.org/).
 
 ---
 
 ## 📚 Questions?
 
-If you have questions about contributing, feel free to **open an issue** or contact:  
+If you have questions about contributing, feel free to **open an issue** or contact:
 **Jeremy Scott Feagan** — [jeremy.feagan@gmail.com](mailto:jeremy.feagan@gmail.com)
 
 Thank you for helping make this project better! ✈️

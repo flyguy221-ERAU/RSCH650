@@ -1,4 +1,5 @@
 import pandas as pd
+
 from config import CT_SEQEVT_CSV, DICT_CSV
 
 
@@ -103,8 +104,7 @@ def build_modifier_lookup() -> pd.DataFrame:
     if not needed.issubset(dd.columns):
         return pd.DataFrame(columns=["modifier_no", "modifier_meaning"])
     m = dd[
-        (dd["Table"].str.strip().str.lower() == "findings")
-        & (dd["Column"].str.strip().str.lower() == "modifier_no")
+        (dd["Table"].str.strip().str.lower() == "findings") & (dd["Column"].str.strip().str.lower() == "modifier_no")
     ][["code_iaids", "meaning"]].dropna()
     if m.empty:
         return pd.DataFrame(columns=["modifier_no", "modifier_meaning"])
