@@ -4,8 +4,17 @@ This document ensures that collaborators and researchers can **reproduce analyse
 
 ## 📦 Python Environment
 
+## 📦 Core Environment
+
 - **Python Version**: 3.11.x
-- **Package Manager**: pip or make
+- **Streamlit**: >=1.35
+- **Pandas**: >=2.2
+- **NumPy**: >=1.26
+- **SciPy**: >=1.14
+- **Statsmodels**: >=0.14
+- **Altair**: >=5.2
+
+For a complete list of locked dependencies, see [`requirements-freeze.txt`](requirements-freeze.txt).
 
 ### Create Environment
 

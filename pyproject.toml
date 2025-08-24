@@ -5,27 +5,56 @@ description = "Streamlit app and data pipeline for analyzing NTSB/CAROL aviation
 authors = [{ name = "Jeremy Scott Feagan", email = "jeremy.feagan@gmail.com" }]
 license = { text = "MIT" }
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["numpy",
+    "pandas",
+    "statsmodels",
+    "altair",
+    "scipy",
+    "streamlit"]
 
 [tool.black]
-line-length = 100
+line-length = 120
 target-version = ["py311"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
-select = ["E","F","I","B","UP","SIM","RUF"]
-ignore = ["E203"]  # keep Black compatible
-exclude =```
-/(
-  \.venv
-  | build
-  | dist
-  | \.git
-  | \.mypy_cache
-  | \.pytest_cache
-)/
-```
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache"
+]
 
-[tool.ruff.isort]
-known-first-party = ["analysis","loaders","labelers","decoder","normalize","lookups","audit","config"]
+[tool.ruff.lint]
+extend-ignore = ["E501"]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E203"]  # Keep Black compatibility
+
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "analysis",
+    "loaders",
+    "labelers",
+    "decoder",
+    "normalize",
+    "lookups",
+    "audit",
+    "config"
+]
+
+[tool.deptry]
+# point deptry at your actual files in repo root
+requirements_files = ["requirements.txt"]
+requirements_files_dev = ["requirements-dev.txt"]
+
+# if you want to keep notebooks out
+ignore_notebooks = true
+
+# ignore common generated/large dirs (keeps scan fast & sane)
+extend_exclude = ["data", "docs/_build"]
+
+known_first_party = ["analysis", "cli", "quality"]

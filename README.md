@@ -1,11 +1,11 @@
-# RSCH650 – NTSB/CAROL Accident Analytics (Streamlit)
+# RSCH650 - NTSB/CAROL Accident Analytics (Streamlit)
 
 ![Lint](https://github.com/flyguy221-ERAU/RSCH650/actions/workflows/pre-commit.yml/badge.svg)
 ![Tests](https://github.com/flyguy221-ERAU/RSCH650/actions/workflows/pytest.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.36+-red.svg)
 
-A **Streamlit app** and **data pipeline** for analyzing NTSB/CAROL accident data.  
+A **Streamlit app** and **data pipeline** for analyzing NTSB/CAROL accident data.
 This project supports **aviation safety research** for the RSCH 650 course by providing **reproducible analytics**, **statistical summaries**, and **interactive visualizations**.
 
 ---
@@ -13,7 +13,7 @@ This project supports **aviation safety research** for the RSCH 650 course by pr
 ## ✈️ Focus Areas
 
 - Event-level accident trends (year, severity, make/model)
-- Phase × Occurrence cross-tabs from the NTSB sequence table
+- Phase x Occurrence cross-tabs from the NTSB sequence table
 - Finding-level analysis with derived **system buckets** (e.g., Flight Controls, Powerplant, Hydraulics)
 - Risk statistics: **chi-square** and **odds ratio** summaries (Flight Controls vs. other systems)
 
@@ -46,7 +46,7 @@ make run  # or: streamlit run app.py
 ├── app.py                     # Streamlit UI
 ├── main.py                    # Pipeline: raw CSVs → Parquet
 ├── analysis/
-│   └── system_risk.py         # System-bucket logic & 2×2 stats
+│   └── system_risk.py         # System-bucket logic & 2x2 stats
 ├── loaders.py                 # CAROL/eADMS CSV readers
 ├── labelers.py                # Human-readable labels + system buckets
 ├── decoder.py                 # Coding/lookup helpers
@@ -69,7 +69,7 @@ make run  # or: streamlit run app.py
 
 ## 📊 Data Expectations
 
-Place CAROL CSVs in `data/raw/`.  
+Place CAROL CSVs in `data/raw/`.
 The pipeline expects the standard **NTSB export tables**:
 
 - Events (accidents/incidents)
@@ -86,7 +86,7 @@ The pipeline expects the standard **NTSB export tables**:
 ### **Overview Tab**
 - Counts and filters by year and highest injury level.
 
-### **Phase × Occurrence Tab**
+### **Phase x Occurrence Tab**
 - Cross-tab of **phase of flight** (rows) by **occurrence category** (columns) using NTSB sequence codes.
 
 ### **Findings Tab**
@@ -95,8 +95,8 @@ The pipeline expects the standard **NTSB export tables**:
 ### **System Risk Tab**
 - Derives per-event **system_bucket** (e.g., Flight Controls, Avionics, Landing Gear).
 - Shows **fatality percentage** by system bucket.
-- Builds a **2×2 risk table**:
-  - Flight Controls vs Other × Fatal vs Nonfatal
+- Builds a **2x2 risk table**:
+  - Flight Controls vs Other x Fatal vs Nonfatal
   - Computes **chi-square** and **odds ratio** tests.
 
 ---
@@ -146,7 +146,7 @@ make test
 
 ## 📚 Citation
 
-If this code contributes to your work, please **cite this repository**.  
+If this code contributes to your work, please **cite this repository**.
 See [CITATION.cff](CITATION.cff) for details.
 
 ---
@@ -170,9 +170,9 @@ pre-commit install
 
 ### **Code Style**
 
-- [black](https://black.readthedocs.io/en/stable/) for formatting  
-- [ruff](https://docs.astral.sh/ruff/) for linting  
-- Functions ≈ **<80 lines** preferred  
+- [black](https://black.readthedocs.io/en/stable/) for formatting
+- [ruff](https://docs.astral.sh/ruff/) for linting
+- Functions ≈ **<80 lines** preferred
 - Type hints **strongly encouraged**
 
 ---
@@ -206,7 +206,7 @@ Provide a **reproducible**, **data-driven** analysis quantifying **relative risk
 - Aggregate event-level accident statistics by year and injury severity.
 - Cross-tabulate phase of flight and occurrence categories.
 - Derive “system buckets” from NTSB findings codes.
-- Compare **flight control–related** events to other systems using **chi-square** and **odds ratios**.
+- Compare **flight control-related** events to other systems using **chi-square** and **odds ratios**.
 
 ### **Step 4: Hypotheses & Assumptions**
 - **Hypothesis**: Flight control malfunctions disproportionately increase the likelihood of fatal accidents.
@@ -224,7 +224,7 @@ Build a **Python/Streamlit** pipeline to ingest raw CAROL CSVs, normalize and ca
 - Apply **chi-square** and **odds ratio** tests for system risk comparisons
 
 ### **Step 7: Interpret Findings**
-Results are displayed in the **Streamlit app**, enabling exploration of accident trends and risk statistics.  
+Results are displayed in the **Streamlit app**, enabling exploration of accident trends and risk statistics.
 Findings will support the **RSCH 650 final paper** and presentation.
 
 ---

@@ -1,22 +1,24 @@
 # analysis/logit_models.py
-import pandas as pd
+from collections.abc import Sequence
+
 import numpy as np
+import pandas as pd
 import statsmodels.formula.api as smf
-from .system_risk import FilterSpec, _is_fatal, _normalize_system
+
+from .system_risk import FilterSpec, _is_fatal, _normalize_system, filter_event_level
 
 
 def fit_logit(
     event_df: pd.DataFrame,
-    spec: FilterSpec = FilterSpec(),
+    spec: FilterSpec | None = None,
     system_col: str = "system_component",
     injury_col: str = "ev_highest_injury",
-    controls: tuple[str, ...] = ("ev_year", "acft_make", "acft_model", "far_part"),
-):
-    d = event_df.copy()
-    # apply same filtering as above
-    from .system_risk import filter_event_level
-
-    d = filter_event_level(d, spec)
+    controls: Sequence[str] | None = None,
+) -> smf.discrete.discrete_model.BinaryResultsWrapper:
+    if spec is None:
+        spec = FilterSpec()
+    controls = list(controls or [])
+    d = filter_event_level(event_df, spec)
     need = {system_col, injury_col}.union(controls)
     missing = [c for c in need if c not in d.columns]
     if missing:

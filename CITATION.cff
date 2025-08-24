@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "RSCH650 – NTSB/CAROL Accident Analytics (Streamlit)"
+title: "RSCH650 - NTSB/CAROL Accident Analytics (Streamlit)"
 type: software
 authors:
   - family-names: Feagan

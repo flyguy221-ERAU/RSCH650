@@ -1,18 +1,19 @@
 import pandas as pd
+
+from audit import quick_audit
 from config import (
     OUT_EVENT_LEVEL,
     OUT_FINDING_LEVEL,
     OUT_FINDING_LEVEL_LABELED,
     OUT_SEQ_LABELED,
 )
-from loaders import read_events, read_findings, read_aircraft, read_events_sequence
 from labelers import (
     build_event_level,
     build_finding_level,
     label_findings,
     label_sequence,
 )
-from audit import quick_audit
+from loaders import read_aircraft, read_events, read_events_sequence, read_findings
 
 
 def pct(s):
@@ -55,12 +56,12 @@ def main():
     # Example cross-tabs
     if {"phase_meaning", "occurrence_meaning"}.issubset(seq_labeled.columns):
         ct2 = pd.crosstab(seq_labeled["phase_meaning"], seq_labeled["occurrence_meaning"])
-        print("\nPhase × Occurrence (first 10×10):")
+        print("\nPhase x Occurrence (first 10x10):")
         print(ct2.iloc[:10, :10])
     if {"finding_category", "ev_highest_injury"}.issubset(finding_lab.columns):
-        ct = pd.crosstab(
-            finding_lab["finding_category"], finding_lab["ev_highest_injury"]
-        ).sort_values("FATL", ascending=False)
+        ct = pd.crosstab(finding_lab["finding_category"], finding_lab["ev_highest_injury"]).sort_values(
+            "FATL", ascending=False
+        )
         print("\nTop finding categories by FATL counts:\n", ct.head(20))
     if {"Cause_Factor", "finding_category"}.issubset(finding_lab.columns):
         cf_map = {"C": "Cause", "F": "Factor", "B": "Both", "U": "Unknown"}
