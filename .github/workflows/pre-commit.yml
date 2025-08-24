@@ -10,13 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
-      - name: Install pre-commit
+          cache: "pip"  # Caches pip deps
+
+      - name: Install pre-commit and deps
         run: |
-            python -m pip install --upgrade pip pre-commit
-            pip install -r requirements.txt
+          python -m pip install --upgrade pip pre-commit deptry==0.23.0  # Optional deptry for fallback
+          pip install -r requirements.txt  # If needed for other deps
+
       - name: Run pre-commit
         run: pre-commit run --all-files

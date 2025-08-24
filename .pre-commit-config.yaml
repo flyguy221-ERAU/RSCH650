@@ -28,9 +28,11 @@ repos:
     rev: "0.23.0"
     hooks:
     - id: deptry
-      args: []  # Keep as is
+      language: python  # Ensures isolated env
+      additional_dependencies: ['deptry']  # No version pin
+      args: []
       files: \.py$
       exclude: ^tests/.*$
-      stages: [pre-commit]
+      stages: [pre-commit]  # Updated post-migration
       name: deptry (check for unused or missing dependencies)
       description: Check for unused or missing dependencies in requirements.txt
