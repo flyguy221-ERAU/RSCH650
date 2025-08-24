@@ -137,6 +137,16 @@ make test
 | `make clean`   | Remove caches                             |
 
 ---
+### Troubleshooting
+
+- **E-DATA-001 Required data not found**
+  Put raw CSVs in `data/raw` and run `make build`. Verify Parquet outputs in `data/out`.
+
+- **E-CSV-001 Could not parse CSV**
+  The file may be corrupt or malformed. Open it, check header/encoding, or re-download from CAROL.
+
+- **E-PIPE-001 Pipeline step failed**
+  Re-run `make build` and review console logs. If it persists, open an issue with the full traceback.
 
 ## ⚖️ License
 
