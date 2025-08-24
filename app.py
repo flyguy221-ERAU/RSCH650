@@ -12,6 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from config import OUT_EVENT_LEVEL, OUT_FINDING_LEVEL_LABELED, OUT_SEQ_LABELED
+from loaders import DataLoadError
+from quality.errors import BAD_CSV, MISSING_DATA, PIPELINE_FAIL
 
 st.set_page_config(page_title="CAROL / eADMS Audit", layout="wide")
 
@@ -181,8 +183,11 @@ def system_risk_tables(event_f: pd.DataFrame, finding_f: pd.DataFrame):
 
         chi2, p, dof, expected = chi2_contingency(xt.values, correction=False)
         # If any expected is zero, raise to fallback
-        if np.any(expected == 0):
-            raise ValueError("Expected count of zero.")
+    except ValueError as exc:
+        st.info(
+            f"**Statistical test unavailable** ({exc}) — insufficient data for expected counts. "
+            "Adjust filters (year range, phases, occurrences) and try again."
+        )
         # Odds ratio (Haldane-Anscombe)
         a, b = xt.loc["Other systems", ["Nonfatal", "Fatal"]].to_numpy()
         c, d = xt.loc["Flight controls", ["Nonfatal", "Fatal"]].to_numpy()
@@ -315,7 +320,20 @@ def load_data():
 
 # ----------------------------------------
 # Load data
-event_df, finding_df, seq_df = load_data()
+try:
+    event_df, finding_df, seq_df = load_data()
+except DataLoadError as e:
+    st.error(f"**{BAD_CSV.title}**  \n{e}  \n_Code: {BAD_CSV.code}_  \n**Try:** {BAD_CSV.hint}")
+    st.stop()
+except Exception as e:
+    st.error(
+        f"**{PIPELINE_FAIL.title}**  \n{type(e).__name__}: {e}  \n_Code: {PIPELINE_FAIL.code}_  \n**Try:** {PIPELINE_FAIL.hint}"
+    )
+    st.stop()
+
+if event_df.empty and finding_df.empty and seq_df.empty:
+    st.warning(f"**{MISSING_DATA.title}**  \n_Code: {MISSING_DATA.code}_  \n**Try:** {MISSING_DATA.hint}")
+    st.stop()
 
 # ----------------------------------------
 # Sidebar controls (define ONCE)
