@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -16,9 +19,56 @@ from config import (
 )
 from normalize import normalize_make_model, parse_flexible_datetime
 
+log = logging.getLogger(__name__)
+
+
+class DataLoadError(Exception):
+    """Raised when an input file is missing or unreadable."""
+
+
+# loaders.py
+def read_csv_safe(path: str | Path, **kwargs) -> pd.DataFrame:
+    """
+    Read a CSV with clear error messages.
+    Default dtype=string and low_memory=False for stable parsing.
+    Also validates that the file contains usable data.
+    """
+    p = Path(path)
+    try:
+        df = pd.read_csv(
+            p,
+            dtype="string",
+            low_memory=False,
+            on_bad_lines="error",  # be strict about malformed lines
+            **kwargs,
+        )
+        # ---- Post-parse validation: treat all-NaN / 0 rows/cols as unusable ----
+        if df.shape[0] == 0 or df.shape[1] == 0 or df.isna().all().all():
+            msg = f"CSV appears empty or contains no usable data: {p}"
+            log.error(msg)
+            raise DataLoadError(msg)
+        return df
+
+    except FileNotFoundError as e:
+        msg = f"Missing input file: {p}\nPut required CSVs in data/raw (see README) and re-run `make build`."
+        log.error(msg)
+        raise DataLoadError(msg) from e
+    except pd.errors.EmptyDataError as e:
+        msg = f"Empty or corrupt CSV: {p}"
+        log.error(msg)
+        raise DataLoadError(msg) from e
+    except pd.errors.ParserError as e:
+        msg = f"Could not parse CSV: {p}\nPandas error: {e}"
+        log.error(msg)
+        raise DataLoadError(msg) from e
+    except Exception as e:
+        msg = f"Unexpected error reading {p}: {type(e).__name__}: {e}"
+        log.error(msg)
+        raise DataLoadError(msg) from e
+
 
 def read_events(path: Path = DATA) -> pd.DataFrame:
-    df = pd.read_csv(
+    df = read_csv_safe(
         EVENTS_CSV,
         usecols=EVENTS_COLS,
         dtype={"ev_id": "string", "ev_year": "Int64", "ev_highest_injury": "string"},
@@ -30,7 +80,7 @@ def read_events(path: Path = DATA) -> pd.DataFrame:
 
 
 def read_findings(path: Path = DATA) -> pd.DataFrame:
-    return pd.read_csv(
+    return read_csv_safe(
         FINDINGS_CSV,
         usecols=FINDINGS_COLS,
         dtype={
@@ -51,7 +101,7 @@ def read_findings(path: Path = DATA) -> pd.DataFrame:
 
 
 def read_aircraft(path: Path = DATA) -> pd.DataFrame:
-    df = pd.read_csv(
+    df = read_csv_safe(
         AIRCRAFT_CSV,
         usecols=AIRCRAFT_COLS,
         dtype={
@@ -66,7 +116,7 @@ def read_aircraft(path: Path = DATA) -> pd.DataFrame:
 
 
 def read_events_sequence(path: Path = DATA) -> pd.DataFrame:
-    df = pd.read_csv(EVENTS_SEQUENCE_CSV, dtype="string", low_memory=False)
+    df = read_csv_safe(EVENTS_SEQUENCE_CSV, dtype="string", low_memory=False)
     keep = [c for c in SEQ_COLS if c in df.columns]
     df = df[keep].copy()
     for col in [
@@ -78,7 +128,7 @@ def read_events_sequence(path: Path = DATA) -> pd.DataFrame:
     ]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
-    if "ev_id" in df:
+    if "ev_id" in df.columns:
         df["ev_id"] = df["ev_id"].astype("string")
     # Derive Occurrence_Code if missing (phase_no + eventsoe_no → 6 digits)
     if "Occurrence_Code" not in df.columns and {"phase_no", "eventsoe_no"}.issubset(df.columns):

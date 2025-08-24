@@ -139,7 +139,9 @@ def event_level_with_system_flags(event_f: pd.DataFrame, finding_f: pd.DataFrame
     ev2 = event_f.copy()
     ev2 = ev2.merge(fc, how="left", left_on="ev_id", right_index=True)
     ev2 = ev2.merge(top_sys, how="left", left_on="ev_id", right_index=True)
-    ev2["has_flight_controls"] = ev2["has_flight_controls"].fillna(False)
+    ev2["has_flight_controls"] = (
+        ev2["has_flight_controls"].astype("boolean").fillna(False)  # explicit dtype  # now safe
+    )
     return ev2
 
 
@@ -341,14 +343,18 @@ with st.sidebar:
     st.header("Filters")
 
     # Year slider from actual data
-    def _collect_year_bounds(*dfs):
-        vals = pd.Series(dtype="float64")
+    def _collect_year_bounds(*dfs) -> tuple[int, int]:
+        year_series = []
         for d in dfs:
             if isinstance(d, pd.DataFrame) and "ev_year" in d.columns:
-                vals = pd.concat([vals, pd.to_numeric(d["ev_year"], errors="coerce")])
-        vals = vals.dropna()
-        if vals.empty:
+                s = pd.to_numeric(d["ev_year"], errors="coerce").dropna()
+                if not s.empty:
+                    year_series.append(s)
+
+        if not year_series:  # nothing usable found
             return 2009, 2025
+
+        vals = pd.concat(year_series, ignore_index=True)
         return int(vals.min()), int(vals.max())
 
     yr_min, yr_max = _collect_year_bounds(event_df, finding_df, seq_df)
