@@ -139,14 +139,30 @@ make test
 ---
 ### Troubleshooting
 
-- **E-DATA-001 Required data not found**
-  Put raw CSVs in `data/raw` and run `make build`. Verify Parquet outputs in `data/out`.
+The dashboard and pipeline raise **friendly error codes** when common problems occur.
+These codes are consistent across `make build` (pipeline) and the Streamlit app.
 
-- **E-CSV-001 Could not parse CSV**
-  The file may be corrupt or malformed. Open it, check header/encoding, or re-download from CAROL.
+#### Common Error Codes
 
-- **E-PIPE-001 Pipeline step failed**
-  Re-run `make build` and review console logs. If it persists, open an issue with the full traceback.
+- **E-DATA-001 — Required data not found**
+  Raw CAROL/eADMS CSVs are missing.
+  ✅ Action: Put the required CSVs into `data/raw` and run `make build`.
+  Check that Parquet outputs are created in `data/out`.
+
+- **E-CSV-001 — Could not parse CSV**
+  The file may be corrupt or malformed (wrong delimiter, encoding, or truncated).
+  ✅ Action: Open the file and check headers/encoding. Re-download from CAROL if needed.
+
+- **E-PIPE-001 — Pipeline step failed**
+  A downstream transformation failed.
+  ✅ Action: Re-run `make build` and check console logs for details.
+  If the error persists, open a GitHub Issue with the traceback.
+
+#### General Tips
+
+- Always activate your virtual environment before running any commands:
+  ```bash
+  source .venv/bin/activate
 
 ## ⚖️ License
 

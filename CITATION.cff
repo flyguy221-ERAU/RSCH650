@@ -5,9 +5,9 @@ type: software
 authors:
   - family-names: Feagan
     given-names: Jeremy Scott
-    orcid: "https://orcid.org/0000-0000-0000-0000"  # Replace with actual ORCID if available
+    orcid: "https://orcid.org/0009-0008-3288-197X"
     email: "jeremy.feagan@gmail.com"
-repository-code: "https://github.com/<YOUR_GITHUB_USERNAME>/RSCH650-NTSB-CAROL-Accident-Analytics"
+repository-code: "https://github.com/flyguy221-ERAU/RSCH650-NTSB-CAROL-Accident-Analytics"
 license: MIT
 version: 1.0.0
 date-released: 2025-08-23
