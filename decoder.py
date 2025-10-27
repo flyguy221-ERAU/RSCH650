@@ -1,101 +1,107 @@
+# decoder.py
 from __future__ import annotations
 
-import re
-from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
-from config import DICT_CSV
-
-WHITELIST = {
-    ("Events_Sequence", "Occurrence_Code"),
-    ("Occurrences", "Occurrence_Code"),
-    ("Events_Sequence", "phase_no"),
-    ("Occurrences", "Phase_of_Flight"),
-    ("Findings", "modifier_no"),
-}
+# ---- Public API -------------------------------------------------------------
 
 
-@lru_cache(maxsize=1)
-def _load_dict() -> pd.DataFrame:
-    df = pd.read_csv(DICT_CSV, dtype="string", low_memory=False)
-    need = {"Category of Data", "Table", "Column", "code_iaids", "meaning"}
-    miss = need - set(df.columns)
-    if miss:
-        raise ValueError(f"Data dictionary missing columns: {miss}")
-    df = df[df["Category of Data"].str.strip().str.lower() == "eadms data"].copy()
-    df["Table_l"] = df["Table"].str.strip().str.lower()
-    df["Column_l"] = df["Column"].str.strip().str.lower()
-    wl = {(t.lower(), c.lower()) for t, c in WHITELIST}
-    return df[df.apply(lambda r: (r["Table_l"], r["Column_l"]) in wl, axis=1)].copy()
+def build_phase_numeric_lookup(dict_csv: Path | str) -> pd.DataFrame:
+    """
+    Returns a dataframe with columns:
+      - phase_code (int) : normalized numeric code (e.g., 1..99)
+      - phase_desc (str) : human-readable phase name
+    Tries to infer column names from the eADMS dictionary CSV or a denormalized map.
+    """
+    df = _read_csv(dict_csv)
+    # heuristics to find code/meaning cols
+    code_col = _first(df, ["phase_code", "phase", "code", "phase_cd", "ph_code"])
+    desc_col = _first(df, ["phase_desc", "phase_name", "description", "meaning", "desc"])
+    if not code_col or not desc_col:
+        # fallback: try to detect pairs like ("Code","Meaning")
+        candidates = _find_code_meaning_pair(df)
+        if candidates:
+            code_col, desc_col = candidates
+        else:
+            # last resort: empty → caller can fall back to _builtin_phase_map()
+            return _builtin_phase_map()
+    out = df[[code_col, desc_col]].rename(columns={code_col: "phase_code", desc_col: "phase_desc"}).copy()
+    out["phase_code"] = _to_int_series(out["phase_code"])
+    out["phase_desc"] = out["phase_desc"].astype("string").str.strip()
+    out = out.dropna(subset=["phase_code"]).drop_duplicates(subset=["phase_code"])
+    if out.empty:
+        return _builtin_phase_map()
+    return out.reset_index(drop=True)
 
 
-def _clean_code_str(s: pd.Series) -> pd.Series:
-    x = s.astype("string").str.replace(r"\D", "", regex=True)
-    return x.str.zfill(6)  # normalize to 6-digit
+def decode_occurrence_code(ct_seqevt_csv: Path | str) -> pd.DataFrame:
+    """
+    Returns a dataframe with columns:
+      - occ_code (string or int) : event/occurrence code used in sequence table
+      - occ_desc (str)           : CAST/ICAO event description
+    Works with a CAST/ICAO 'ct_sequevt.csv' style file or a generic two-column mapping.
+    """
+    df = _read_csv(ct_seqevt_csv)
+    code_col = _first(df, ["event_code", "ev_code", "occ_code", "code"])
+    desc_col = _first(df, ["event_desc", "description", "meaning", "desc", "name"])
+    if not code_col or not desc_col:
+        candidates = _find_code_meaning_pair(df)
+        if candidates:
+            code_col, desc_col = candidates
+        else:
+            raise ValueError("Could not infer columns for occurrence mapping.")
+    out = df[[code_col, desc_col]].rename(columns={code_col: "occ_code", desc_col: "occ_desc"}).copy()
+    # keep code as string to preserve leading zeros if any
+    out["occ_code"] = out["occ_code"].astype("string").str.strip()
+    out["occ_desc"] = out["occ_desc"].astype("string").str.strip()
+    out = out.dropna(subset=["occ_code"]).drop_duplicates(subset=["occ_code"])
+    return out.reset_index(drop=True)
 
 
-def _is_left_family(t: str) -> bool:  # ###xxx
-    return bool(re.fullmatch(r"\d{3}xxx", str(t).strip(), flags=re.IGNORECASE))
+# ---- Helpers ----------------------------------------------------------------
 
 
-def _is_right_family(t: str) -> bool:  # xxx###
-    return bool(re.fullmatch(r"xxx\d{3}", str(t).strip(), flags=re.IGNORECASE))
+def _read_csv(p: Path | str) -> pd.DataFrame:
+    p = Path(p)
+    if not p.exists():
+        raise FileNotFoundError(p)
+    return pd.read_csv(p, dtype="string", encoding="utf-8", on_bad_lines="skip")
 
 
-def _is_exact6(t: str) -> bool:  # ######
-    return bool(re.fullmatch(r"\d{6}", str(t).strip()))
+def _first(df: pd.DataFrame, names: list[str]) -> str | None:
+    cols = {c.lower(): c for c in df.columns}
+    for n in names:
+        if n.lower() in cols:
+            return cols[n.lower()]
+    return None
 
 
-@lru_cache(maxsize=1)
-def build_occ_code_decoders() -> tuple[dict, dict, dict]:
-    dd = _load_dict()
-    occ = dd[(dd["Column_l"] == "occurrence_code") & (dd["meaning"].notna()) & (dd["code_iaids"].notna())][
-        ["code_iaids", "meaning"]
-    ].copy()
-
-    left = occ[occ["code_iaids"].apply(_is_left_family)].copy()
-    right = occ[occ["code_iaids"].apply(_is_right_family)].copy()
-    exact = occ[occ["code_iaids"].apply(_is_exact6)].copy()
-
-    left["key"] = left["code_iaids"].str.extract(r"^(\d{3})", expand=False)
-    right["key"] = right["code_iaids"].str.extract(r"(\d{3})$", expand=False)
-    exact["key"] = exact["code_iaids"].str.extract(r"(\d{6})", expand=False)
-
-    left3_map = dict(left.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
-    right3_map = dict(right.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
-    exact6_map = dict(exact.dropna(subset=["key"]).drop_duplicates("key")[["key", "meaning"]].values)
-    return left3_map, right3_map, exact6_map
+def _find_code_meaning_pair(df: pd.DataFrame) -> tuple[str, str] | None:
+    lower = {c.lower(): c for c in df.columns}
+    code_keys = [k for k in lower if "code" in k or k in {"id"}]
+    desc_keys = [k for k in lower if any(x in k for x in ["desc", "meaning", "name", "label"])]
+    if code_keys and desc_keys:
+        return lower[code_keys[0]], lower[desc_keys[0]]
+    return None
 
 
-@lru_cache(maxsize=1)
-def build_phase_numeric_lookup() -> pd.DataFrame:
-    dd = _load_dict()
-    m = dd[(dd["Table_l"] == "events_sequence") & (dd["Column_l"] == "phase_no")][["code_iaids", "meaning"]].dropna()
-    if m.empty:
-        m = dd[(dd["Table_l"] == "occurrences") & (dd["Column_l"] == "phase_of_flight")][
-            ["code_iaids", "meaning"]
-        ].dropna()
-    if m.empty:
-        return pd.DataFrame(columns=["code_int", "meaning"])
-    code = m["code_iaids"].str.extract(r"(\d+)$")[0].fillna(m["code_iaids"].str.extract(r"(\d+)")[0])
-    lk = pd.DataFrame(
-        {
-            "code_int": pd.to_numeric(code, errors="coerce").astype("Int64"),
-            "meaning": m["meaning"],
-        }
-    )
-    lk = lk.dropna(subset=["code_int"]).drop_duplicates("code_int")
-    return lk.reset_index(drop=True)
+def _to_int_series(s: pd.Series) -> pd.Series:
+    return s.astype("string").str.extract(r"(\d+)", expand=False).astype("Int64")
 
 
-def decode_occurrence_code(series: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
-    left3_map, right3_map, exact6_map = build_occ_code_decoders()
-    code = _clean_code_str(series)
-    code6 = code.str[-6:]
-    left3 = code6.str[:3]
-    right3 = code6.str[-3:]
-    occ_exact = code6.map(exact6_map).astype("string")
-    occ_right = right3.map(right3_map).astype("string")
-    phase_left = left3.map(left3_map).astype("string")
-    return occ_exact, occ_right, phase_left
+def _builtin_phase_map() -> pd.DataFrame:
+    # Minimal, widely used phases — safe fallback if dictionary file is unavailable.
+    data = [
+        (1, "STANDING"),
+        (2, "TAXI"),
+        (3, "TAKEOFF"),
+        (4, "CLIMB"),
+        (5, "CRUISE"),
+        (6, "DESCENT"),
+        (7, "APPROACH"),
+        (8, "LANDING"),
+        (9, "GO-AROUND"),
+    ]
+    return pd.DataFrame(data, columns=["phase_code", "phase_desc"])
