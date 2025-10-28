@@ -1,16 +1,18 @@
 # audit.py
 from __future__ import annotations
 
-import math
 from collections.abc import Iterable
 
 import pandas as pd
 
 
 def pct(num: int, den: int) -> str:
-    if den == 0 or den is None or math.isnan(den):
+    try:
+        if den is None or den == 0:
+            return "0.0%"
+        return f"{(num / den) * 100:0.1f}%"
+    except Exception:
         return "0.0%"
-    return f"{(num / den) * 100:0.1f}%"
 
 
 def coverage(df: pd.DataFrame, cols: Iterable[str]) -> pd.DataFrame:

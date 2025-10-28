@@ -1,16 +1,20 @@
 from pathlib import Path
 
-# Base path for data and outputs
-DATA = Path("data/raw")
+# Base paths
+ROOT = Path("data")
+RAW = ROOT / "raw"
+DICT = ROOT / "dict"
 
 # Data dictionary (master source)
-DICT_CSV = DATA / "eADMSPUB_DataDictionary.csv"
+DICT_CSV = RAW / "eADMSPUB_DataDictionary.csv"  # keep as-is (from eADMS)
 
-# Inputs
-EVENTS_CSV = DATA / "events.csv"
-FINDINGS_CSV = DATA / "findings.csv"
-AIRCRAFT_CSV = DATA / "aircraft.csv"
-EVENTS_SEQUENCE_CSV = DATA / "events_sequence.csv"
+# Inputs (raw exports)
+EVENTS_CSV = RAW / "events.csv"
+FINDINGS_CSV = RAW / "findings.csv"
+AIRCRAFT_CSV = RAW / "aircraft.csv"
+EVENTS_SEQUENCE_CSV = RAW / "events_sequence.csv"
+CT_SEQEVT_CSV = RAW / "ct_seqevt.csv"  # CAST/ICAO event codes → descriptions
+PHASE_MAP_CSV = DICT / "phase_map.csv"  # optional; your own phase code → desc map
 
 # Columns to load
 EVENTS_COLS = ["ev_id", "ev_year", "ev_date", "ev_highest_injury"]
@@ -40,13 +44,13 @@ SEQ_COLS = [
 
 # Date formats seen in CAROL/eADMS exports
 DATE_FORMATS = [
-    "%m/%d/%y %H:%M",  # 1/10/08 0:00
-    "%m/%d/%Y %H:%M",  # 1/10/2008 00:00
-    "%b %d, %Y %I:%M:%S %p",  # Jan 10, 2008 12:00:00 AM
+    "%m/%d/%y %H:%M",
+    "%m/%d/%Y %H:%M",
+    "%b %d, %Y %I:%M:%S %p",
 ]
 
 # Outputs (Parquet)
-OUT_EVENT_LEVEL = Path("data/out/event_level.parquet")
-OUT_FINDING_LEVEL = Path("data/out/finding_level.parquet")
-OUT_FINDING_LEVEL_LABELED = Path("data/out/finding_level_labeled.parquet")
-OUT_SEQ_LABELED = Path("data/out/events_sequence_labeled.parquet")
+OUT_EVENT_LEVEL = ROOT / "out/event_level.parquet"
+OUT_FINDING_LEVEL = ROOT / "out/finding_level.parquet"
+OUT_FINDING_LEVEL_LABELED = ROOT / "out/finding_level_labeled.parquet"
+OUT_SEQ_LABELED = ROOT / "out/events_sequence_labeled.parquet"

@@ -1,3 +1,4 @@
+# loaders.py
 from __future__ import annotations
 
 import logging
@@ -8,7 +9,6 @@ import pandas as pd
 from config import (
     AIRCRAFT_COLS,
     AIRCRAFT_CSV,
-    DATA,
     DATE_FORMATS,
     EVENTS_COLS,
     EVENTS_CSV,
@@ -23,26 +23,25 @@ log = logging.getLogger(__name__)
 
 
 class DataLoadError(Exception):
-    """Raised when an input file is missing or unreadable."""
+    """Raised when an input file is missing, empty, or unreadable."""
 
 
-# loaders.py
 def read_csv_safe(path: str | Path, **kwargs) -> pd.DataFrame:
     """
-    Read a CSV with clear error messages.
-    Default dtype=string and low_memory=False for stable parsing.
-    Also validates that the file contains usable data.
+    Read a CSV with strict error handling and clear messages.
+    Defaults to dtype=string and low_memory=False; caller can override via **kwargs.
+    Validates that the file contains usable data.
     """
     p = Path(path)
     try:
         df = pd.read_csv(
             p,
-            dtype="string",
-            low_memory=False,
-            on_bad_lines="error",  # be strict about malformed lines
+            dtype=kwargs.pop("dtype", "string"),
+            low_memory=kwargs.pop("low_memory", False),
+            on_bad_lines=kwargs.pop("on_bad_lines", "error"),
             **kwargs,
         )
-        # ---- Post-parse validation: treat all-NaN / 0 rows/cols as unusable ----
+        # Treat 0 rows/cols or all-NA as unusable.
         if df.shape[0] == 0 or df.shape[1] == 0 or df.isna().all().all():
             msg = f"CSV appears empty or contains no usable data: {p}"
             log.error(msg)
@@ -50,7 +49,7 @@ def read_csv_safe(path: str | Path, **kwargs) -> pd.DataFrame:
         return df
 
     except FileNotFoundError as e:
-        msg = f"Missing input file: {p}\nPut required CSVs in data/raw (see README) and re-run `make build`."
+        msg = f"Missing input file: {p}\nPut required CSVs in data/raw and re-run."
         log.error(msg)
         raise DataLoadError(msg) from e
     except pd.errors.EmptyDataError as e:
@@ -67,22 +66,46 @@ def read_csv_safe(path: str | Path, **kwargs) -> pd.DataFrame:
         raise DataLoadError(msg) from e
 
 
-def read_events(path: Path = DATA) -> pd.DataFrame:
+# ------------ Events ---------------------------------------------------------
+
+
+def read_events() -> pd.DataFrame:
+    """
+    Load events with strict dtypes, parse dates across known CAROL formats,
+    and filter to the 2008-2023 analysis window.
+    """
     df = read_csv_safe(
         EVENTS_CSV,
-        usecols=EVENTS_COLS,
+        usecols=[c for c in EVENTS_COLS if c],
         dtype={"ev_id": "string", "ev_year": "Int64", "ev_highest_injury": "string"},
-        low_memory=False,
     )
-    df["ev_date"] = parse_flexible_datetime(df["ev_date"], DATE_FORMATS)
-    df = df[df["ev_year"] >= 2009].copy()
+
+    # Normalize/parse event date
+    if "ev_date" in df.columns:
+        df["ev_date"] = parse_flexible_datetime(df["ev_date"], DATE_FORMATS)
+
+    # Filter to analysis window (inclusive)
+    if "ev_year" in df.columns:
+        df = df[(df["ev_year"] >= 2008) & (df["ev_year"] <= 2023)].copy()
+
+    # Strip spaces from string cols
+    for col in df.select_dtypes(include="string").columns:
+        df[col] = df[col].str.strip()
+
     return df
 
 
-def read_findings(path: Path = DATA) -> pd.DataFrame:
-    return read_csv_safe(
+# ------------ Findings -------------------------------------------------------
+
+
+def read_findings() -> pd.DataFrame:
+    """
+    Load findings; keep only the columns we care about; enforce dtypes that
+    make joining/labeling deterministic.
+    """
+    df = read_csv_safe(
         FINDINGS_CSV,
-        usecols=FINDINGS_COLS,
+        usecols=[c for c in FINDINGS_COLS if c],
         dtype={
             "ev_id": "string",
             "Aircraft_Key": "Int64",
@@ -96,49 +119,78 @@ def read_findings(path: Path = DATA) -> pd.DataFrame:
             "modifier_no": "Int64",
             "Cause_Factor": "string",
         },
-        low_memory=False,
     )
 
+    for col in df.select_dtypes(include="string").columns:
+        df[col] = df[col].str.strip()
 
-def read_aircraft(path: Path = DATA) -> pd.DataFrame:
+    return df
+
+
+# ------------ Aircraft -------------------------------------------------------
+
+
+def read_aircraft() -> pd.DataFrame:
+    """
+    Load aircraft table and normalize make/model tokens for consistent grouping.
+    """
     df = read_csv_safe(
         AIRCRAFT_CSV,
-        usecols=AIRCRAFT_COLS,
+        usecols=[c for c in AIRCRAFT_COLS if c],
         dtype={
             "ev_id": "string",
             "Aircraft_Key": "Int64",
             "acft_make": "string",
             "acft_model": "string",
         },
-        low_memory=False,
     )
+
+    for col in ["acft_make", "acft_model"]:
+        if col in df.columns:
+            df[col] = df[col].astype("string").str.strip()
+
     return normalize_make_model(df)
 
 
-def read_events_sequence(path: Path = DATA) -> pd.DataFrame:
-    df = read_csv_safe(EVENTS_SEQUENCE_CSV, dtype="string", low_memory=False)
+# ------------ Events Sequence ------------------------------------------------
+
+
+def read_events_sequence() -> pd.DataFrame:
+    """
+    Load sequence-of-events and ensure the core keys/fields are correctly typed.
+    If Occurrence_Code is missing, derive it deterministically as phase_no(3d)+eventsoe_no(3d).
+    """
+    df = read_csv_safe(EVENTS_SEQUENCE_CSV)
+
+    # Keep only expected columns if present
     keep = [c for c in SEQ_COLS if c in df.columns]
-    df = df[keep].copy()
-    for col in [
-        "Occurrence_No",
-        "phase_no",
-        "eventsoe_no",
-        "Defining_ev",
-        "Aircraft_Key",
-    ]:
+    if keep:
+        df = df[keep].copy()
+
+    # Type coercions
+    int_cols = ["Occurrence_No", "phase_no", "eventsoe_no", "Defining_ev", "Aircraft_Key"]
+    for col in int_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+
     if "ev_id" in df.columns:
-        df["ev_id"] = df["ev_id"].astype("string")
-    # Derive Occurrence_Code if missing (phase_no + eventsoe_no → 6 digits)
+        df["ev_id"] = df["ev_id"].astype("string").str.strip()
+
+    # Derive Occurrence_Code if missing
     if "Occurrence_Code" not in df.columns and {"phase_no", "eventsoe_no"}.issubset(df.columns):
 
         def mk_code(row):
-            if pd.isna(row["phase_no"]) or pd.isna(row["eventsoe_no"]):
+            ph, ev = row.get("phase_no"), row.get("eventsoe_no")
+            if pd.isna(ph) or pd.isna(ev):
                 return pd.NA
-            return f"{int(row['phase_no']):03d}{int(row['eventsoe_no']):03d}"
+            return f"{int(ph):03d}{int(ev):03d}"
 
         df["Occurrence_Code"] = df.apply(mk_code, axis=1).astype("string")
+
     if "Defining_ev" in df.columns:
         df["Defining_ev"] = df["Defining_ev"].fillna(0).astype("Int64")
+
+    for col in df.select_dtypes(include="string").columns:
+        df[col] = df[col].str.strip()
+
     return df

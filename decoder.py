@@ -41,7 +41,7 @@ def decode_occurrence_code(ct_seqevt_csv: Path | str) -> pd.DataFrame:
     Returns a dataframe with columns:
       - occ_code (string or int) : event/occurrence code used in sequence table
       - occ_desc (str)           : CAST/ICAO event description
-    Works with a CAST/ICAO 'ct_sequevt.csv' style file or a generic two-column mapping.
+    Works with a CAST/ICAO 'ct_seqevt.csv' style file or a generic two-column mapping.
     """
     df = _read_csv(ct_seqevt_csv)
     code_col = _first(df, ["event_code", "ev_code", "occ_code", "code"])
