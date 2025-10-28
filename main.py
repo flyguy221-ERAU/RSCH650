@@ -119,18 +119,26 @@ def main():
 
     # Top finding categories by injury
     if {"finding_category", "ev_highest_injury"}.issubset(finding_lab.columns):
-        ct = pd.crosstab(finding_lab["finding_category"], finding_lab["ev_highest_injury"])
+        tmp = finding_lab.copy()
+        # Normalize injury labels to avoid drift like 'FATL ' vs 'FATL'
+        tmp["ev_highest_injury_norm"] = tmp["ev_highest_injury"].astype("string").str.strip().str.upper()
+
+        ct = pd.crosstab(tmp["finding_category"], tmp["ev_highest_injury_norm"])
+
         # Add TOTAL and choose a sensible sort column
         ct["TOTAL"] = ct.sum(axis=1)
         sort_col = "FATL" if "FATL" in ct.columns else "TOTAL"
         ct_sorted = ct.sort_values(by=sort_col, ascending=False)
 
-        print("\nTop finding categories by injury counts (head):")
-        # Show injury columns first (if FATL exists, bring it forward), then TOTAL
+        # Build the display column order: injury cols (FATL first if present) + TOTAL
         injury_cols = [c for c in ct.columns if c != "TOTAL"]
         if "FATL" in injury_cols:
             injury_cols = ["FATL"] + [c for c in injury_cols if c != "FATL"]
-        print(ct_sorted[*injury_cols, "TOTAL"].head(20))
+
+        print("\nTop finding categories by injury counts (head):")
+        # Use .loc with a LIST of columns, not a tuple
+        cols_to_show = [*injury_cols, "TOTAL"]
+        print(ct_sorted.loc[:, cols_to_show].head(20))
 
     # Cause/Factor by finding_category
     if {"Cause_Factor", "finding_category"}.issubset(finding_lab.columns):
