@@ -1,6 +1,6 @@
 import pandas as pd
 
-from decoder import build_phase_numeric_lookup, decode_occurrence_code
+from decoder import build_occ_phase_maps
 from normalize import split_finding_description
 
 # -------------------------
@@ -37,71 +37,36 @@ def label_findings(finding_level: pd.DataFrame) -> pd.DataFrame:
 
 def label_sequence(
     seq: pd.DataFrame,
-    phase_map_path,  # Path or str to phase map CSV (or your eADMS dict as fallback)
-    ct_seqevt_path,  # Path or str to CAST/ICAO seq events map (occ_code -> occ_desc)
+    dict_csv_path,  # Path or str to eADMSPUB_DataDictionary.csv
 ) -> pd.DataFrame:
     """
-    Enriches the events_sequence table with:
-      - occurrence_meaning (via exact code or right3 fallback)
-      - phase_meaning_primary (via numeric phase map)
-      - phase_meaning_fallback (via left3 "family" derived from occ_desc)
-      - phase_meaning (primary else fallback)
+    Enrich seq with:
+      - occurrence_meaning: exact 6-digit map else right-3 map (from eADMS dict)
+      - phase_meaning_primary: via phase_no using left-3 phase map (PPPxxx)
+      - phase_meaning_fallback: via Occurrence_Code left-3 (PPP) if primary missing
+      - phase_meaning: primary else fallback
     """
     out = seq.copy()
+    exact_map, right3_map, left3_phase_map = build_occ_phase_maps(dict_csv_path)
 
-    # ---- Build lookups from the provided paths
-    phase_lu = build_phase_numeric_lookup(phase_map_path)  # cols: phase_code, phase_desc
-    se_lu = decode_occurrence_code(ct_seqevt_path)  # cols: occ_code,  occ_desc
-
-    # Index them for fast mapping
-    occ_exact_map = dict(zip(se_lu["occ_code"], se_lu["occ_desc"], strict=False))
-
-    # Build "right3" map (last 3 chars) and "left3 family" map
-    # Example: "SCF-NP" -> right3 "NP";    left3 "SCF"
-    se_lu_right3 = se_lu.copy()
-    se_lu_right3["right3"] = se_lu_right3["occ_code"].astype("string").str[-3:]
-    right3_map = dict(zip(se_lu_right3["right3"], se_lu_right3["occ_desc"], strict=False))
-
-    # Family = first token of occ_desc before ":" if present
-    # e.g., "System/Component Failure: Non-Powerplant" -> "System/Component Failure"
-    se_lu_left3 = se_lu.copy()
-    se_lu_left3["left3"] = se_lu_left3["occ_code"].astype("string").str[:3]
-    se_lu_left3["family"] = (
-        se_lu_left3["occ_desc"].astype("string").str.split(":", n=1, expand=True).iloc[:, 0].str.strip()
-    )
-    # pick the first family for each left3
-    left3_map = dict(
-        zip(se_lu_left3.drop_duplicates("left3")["left3"], se_lu_left3.drop_duplicates("left3")["family"], strict=False)
-    )
-
-    # ---- Occurrence_Code → meanings
+    # --- Occurrence meaning (exact first, else right3)
     if "Occurrence_Code" in out.columns:
-        occ_series = out["Occurrence_Code"].astype("string")
+        occ = out["Occurrence_Code"].astype("string").str.zfill(6)
 
-        # exact match
-        occ_exact = occ_series.map(occ_exact_map)
+        occ_meaning = occ.map(exact_map)  # exact 6-digit if available
+        occ_meaning = occ_meaning.fillna(occ.str[-3:].map(right3_map))  # fallback to right-3
 
-        # right3 fallback (if exact not found)
-        right3_keys = occ_series.str[-3:]
-        occ_right3 = right3_keys.map(right3_map)
+        out["occurrence_meaning"] = occ_meaning
 
-        # left3-derived "family" (used later as a phase fallback if needed)
-        left3_keys = occ_series.str[:3]
-        phase_left_family = left3_keys.map(left3_map)
+        # phase fallback from left3 family (PPP)
+        out["phase_meaning_fallback"] = occ.str[:3].map(left3_phase_map)
 
-        out["occurrence_meaning"] = occ_exact.fillna(occ_right3)
-        out["phase_meaning_fallback"] = phase_left_family
+    # --- Phase primary via numeric phase_no (PPP)
+    if "phase_no" in out.columns and not left3_phase_map.empty:
+        phase_key = out["phase_no"].astype("Int64").astype("string").str.zfill(3)
+        out["phase_meaning_primary"] = phase_key.map(left3_phase_map)
 
-    # ---- Numeric phase → primary phase meaning
-    # Expect phase_lu has columns: phase_code (int), phase_desc (str)
-    if "phase_no" in out.columns and not phase_lu.empty:
-        # normalize types for the merge
-        tmp = phase_lu.rename(columns={"phase_code": "phase_no", "phase_desc": "phase_meaning_primary"}).copy()
-        tmp["phase_no"] = tmp["phase_no"].astype("Int64")
-        out["phase_no"] = out["phase_no"].astype("Int64")
-        out = out.merge(tmp, on="phase_no", how="left")
-
-    # ---- Final phase meaning: primary else fallback
+    # --- Final phase meaning
     out["phase_meaning"] = out.get("phase_meaning_primary")
     if "phase_meaning_fallback" in out.columns:
         out["phase_meaning"] = out["phase_meaning"].fillna(out["phase_meaning_fallback"])
