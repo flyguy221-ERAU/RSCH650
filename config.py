@@ -13,8 +13,7 @@ EVENTS_CSV = RAW / "events.csv"
 FINDINGS_CSV = RAW / "findings.csv"
 AIRCRAFT_CSV = RAW / "aircraft.csv"
 EVENTS_SEQUENCE_CSV = RAW / "events_sequence.csv"
-CT_SEQEVT_CSV = RAW / "ct_seqevt.csv"  # CAST/ICAO event codes → descriptions
-PHASE_MAP_CSV = DICT / "phase_map.csv"  # optional; your own phase code → desc map
+
 
 # Columns to load
 EVENTS_COLS = ["ev_id", "ev_year", "ev_date", "ev_highest_injury"]

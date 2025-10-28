@@ -1,23 +1,22 @@
 # main.py
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 
 from audit import quick_audit
 from config import (
-    CT_SEQEVT_CSV,
-    DICT_CSV,
-    # outputs
+    DICT_CSV,  # eADMS data dictionary (ground truth for decoding)
     OUT_EVENT_LEVEL,
     OUT_FINDING_LEVEL,
     OUT_FINDING_LEVEL_LABELED,
     OUT_SEQ_LABELED,
-    # lookup/taxonomy paths
-    PHASE_MAP_CSV,
 )
-from labelers import build_event_level, build_finding_level, label_findings, label_sequence
+from labelers import (
+    build_event_level,
+    build_finding_level,
+    label_findings,
+    label_sequence,
+)
 from loaders import read_aircraft, read_events, read_events_sequence, read_findings
 
 
@@ -39,10 +38,10 @@ def main():
     # -------------------------
     # Load raw frames
     # -------------------------
-    events = read_events()  # expects ev_id, ev_year, ev_date, ev_highest_injury, ...
-    findings = read_findings()  # expects finding_description, codes, Cause_Factor, ...
-    aircraft = read_aircraft()  # expects ev_id, Aircraft_Key, acft_make, acft_model
-    seq = read_events_sequence()  # expects ev_id, Aircraft_Key, Occurrence_No, phase_no, Occurrence_Code, Defining_ev
+    events = read_events()  # ev_id, ev_year, ev_date, ev_highest_injury, ...
+    findings = read_findings()  # finding_description, codes, Cause_Factor, ...
+    aircraft = read_aircraft()  # ev_id, Aircraft_Key, acft_make, acft_model
+    seq = read_events_sequence()  # ev_id, Aircraft_Key, Occurrence_No, phase_no, Occurrence_Code, Defining_ev
 
     # -------------------------
     # Build base tables
@@ -51,22 +50,27 @@ def main():
     finding_lvl = build_finding_level(events, findings, aircraft)
 
     # -------------------------
-    # Label sequence & findings
-    # (pass lookup paths explicitly)
+    # Label sequence & findings (dictionary-native decoding)
     # -------------------------
-    phase_map_path = PHASE_MAP_CSV if Path(PHASE_MAP_CSV).exists() else DICT_CSV
-    seq_labeled = label_sequence(seq, phase_map_path=phase_map_path, ct_seqevt_path=CT_SEQEVT_CSV)
+    seq_labeled = label_sequence(seq, dict_csv_path=DICT_CSV)
     finding_lab = label_findings(finding_lvl)
+
+    # Optional: show decoder hit mix (exact vs right-3)
+    from decoder import build_occ_phase_maps
+
+    exact_map, right3_map, _ = build_occ_phase_maps(DICT_CSV)
+    occ = seq["Occurrence_Code"].astype("string").str.zfill(6)
+    hits_exact = occ.map(exact_map).notna().sum()
+    hits_r3 = occ.str[-3:].map(right3_map).notna().sum()
+    print(f"Decoder hits — exact: {hits_exact:,} | right3: {hits_r3:,}")
 
     # -------------------------
     # Save Parquet outputs
     # -------------------------
     OUT_EVENT_LEVEL.parent.mkdir(parents=True, exist_ok=True)
     event_level.to_parquet(OUT_EVENT_LEVEL, index=False)
-
     finding_lvl.to_parquet(OUT_FINDING_LEVEL, index=False)
     finding_lab.to_parquet(OUT_FINDING_LEVEL_LABELED, index=False)
-
     seq_labeled.to_parquet(OUT_SEQ_LABELED, index=False)
 
     # -------------------------
@@ -107,23 +111,23 @@ def main():
         ct2 = pd.crosstab(seq_labeled["phase_meaning"], seq_labeled["occurrence_meaning"])
         # Sort rows/cols by totals for a more informative preview
         ct2 = ct2.loc[
-            ct2.sum(axis=1).sort_values(ascending=False).index, ct2.sum(axis=0).sort_values(ascending=False).index
+            ct2.sum(axis=1).sort_values(ascending=False).index,
+            ct2.sum(axis=0).sort_values(ascending=False).index,
         ]
-        print("\nPhase x Occurrence (top 10x10 by totals):")
+        print("\nPhase x Occurrence (top 10 x 10 by totals):")
         print(ct2.iloc[:10, :10])
 
     # Top finding categories by injury
     if {"finding_category", "ev_highest_injury"}.issubset(finding_lab.columns):
         ct = pd.crosstab(finding_lab["finding_category"], finding_lab["ev_highest_injury"])
-
         # Add TOTAL and choose a sensible sort column
         ct["TOTAL"] = ct.sum(axis=1)
         sort_col = "FATL" if "FATL" in ct.columns else "TOTAL"
         ct_sorted = ct.sort_values(by=sort_col, ascending=False)
 
         print("\nTop finding categories by injury counts (head):")
-        # Show the injury columns first (if FATL exists, bring it forward), then TOTAL
-        injury_cols = [c for c in ct.columns if c not in {"TOTAL"}]
+        # Show injury columns first (if FATL exists, bring it forward), then TOTAL
+        injury_cols = [c for c in ct.columns if c != "TOTAL"]
         if "FATL" in injury_cols:
             injury_cols = ["FATL"] + [c for c in injury_cols if c != "FATL"]
         print(ct_sorted[*injury_cols, "TOTAL"].head(20))
