@@ -155,6 +155,119 @@ def main():
         print("\nCause/Factor by finding_category (head):")
         print(ct3.head(20))
 
+        # A. Select SCF-NP events (optionally only defining events)
+        scfnp_mask = seq_labeled["occurrence_meaning"].str.contains(
+            "SYS/COMP MALF/FAIL (NON-POWER)", case=False, na=False, regex=False
+        )
+        defining_mask = seq_labeled.get("Defining_ev").astype("Int64").eq(1)  # 1/TRUE means defining
+
+        # choose one:
+        scfnp_core = seq_labeled[scfnp_mask & defining_mask]  # primary driver only
+        # scfnp_any  = seq_labeled[scfnp_mask]                 # any occurrence in sequence
+
+        scfnp_ev_ids = scfnp_core["ev_id"].dropna().unique()
+        print(f"- defining events: {len(scfnp_ev_ids):,}")
+
+    # B1. Label procedure-related findings (finding-level)
+    PROC_KEYWORDS = [
+        "CHECKLIST",
+        "PROCEDURE",
+        "SOP",
+        "STANDARD OPERATING PROCEDURE",
+        "BRIEFING",
+        "BRIEF",
+        "CALLOUT",
+        "CALL OUT",
+        "INSPECTION",
+        "INSPECT",
+        "MAINTENANCE PROCEDURE",
+        "CONFIGURATION",
+        "CONFIGURE",
+        "VERIFY",
+        "VERIFICATION",
+        "CROSSCHECK",
+        "CROSS-CHECK",
+        "CROSS CHECK",
+        "USE OF EQUIP/INFO",  # eADMS phrasing
+        "TASK PERFORMANCE-USE OF EQUIP",  # category string fragment
+    ]
+
+    def is_procedural(text: pd.Series) -> pd.Series:
+        s = text.fillna("").str.upper()
+        mask = pd.Series(False, index=s.index)
+        for kw in PROC_KEYWORDS:
+            mask = mask | s.str.contains(kw, na=False)
+        return mask
+
+    finding_lab["ProcedureFinding"] = is_procedural(finding_lab["finding_description"])
+
+    # Optionally restrict to CAUSE ('C') or BOTH ('B') if you want “mitigation failure” not just contributing factors:
+    is_cause_like = finding_lab["Cause_Factor"].isin(["C", "B"])
+    finding_lab["ProcedureFinding_CauseOrBoth"] = finding_lab["ProcedureFinding"] & is_cause_like
+
+    # B2. Roll-up to event level
+    proc_event = finding_lab.groupby("ev_id", as_index=False).agg(
+        proc_any=("ProcedureFinding", "any"),
+        proc_cause_or_both=("ProcedureFinding_CauseOrBoth", "any"),
+    )
+
+    # Join to event_level for outcomes
+    event_enriched = event_level.merge(proc_event, on="ev_id", how="left")
+    event_enriched[["proc_any", "proc_cause_or_both"]] = event_enriched[["proc_any", "proc_cause_or_both"]].fillna(
+        False
+    )
+
+    # Mark - events
+    event_enriched["is_scfnp"] = event_enriched["ev_id"].isin(scfnp_ev_ids)
+
+    # Outcome: fatal vs non-fatal (binary)
+    event_enriched["fatal"] = event_enriched["ev_highest_injury"].astype(str).str.upper().str.strip().eq("FATL")
+
+    print(event_enriched[["is_scfnp", "proc_any", "proc_cause_or_both", "fatal"]].head())
+    print(event_enriched["is_scfnp"].value_counts())
+    print(finding_lab["ProcedureFinding"].value_counts())
+    print(finding_lab.loc[finding_lab["ProcedureFinding"], "finding_description"].sample(20))
+    overlap = event_enriched[event_enriched["is_scfnp"] & event_enriched["proc_any"]]
+    print(f"- events with ANY procedural finding: {len(overlap)}")
+    print(f"…of which fatal: {overlap['fatal'].sum()} ({overlap['fatal'].mean() * 100:.1f}% fatal)")
+    print(events["ev_id"].dtype, findings["ev_id"].dtype, aircraft["ev_id"].dtype)
+
+    import numpy as np
+    import statsmodels.formula.api as smf
+    from scipy.stats import fisher_exact
+
+    # ------------------------------
+    # C1.  - x Procedural (Cause/Both)
+    # ------------------------------
+    tab1 = pd.crosstab(event_enriched["is_scfnp"], event_enriched["proc_cause_or_both"])
+    print("\nC1. - x Procedural (Cause/Both):\n", tab1)
+
+    odds1, p1 = fisher_exact(tab1.values)
+    print(f"Fisher exact: OR={odds1:0.2f}, p={p1:0.4f}")
+
+    # ------------------------------
+    # C2.  Within -: Procedural x Fatal
+    # ------------------------------
+    sub = event_enriched[event_enriched["is_scfnp"]].copy()
+    tab2 = pd.crosstab(sub["proc_cause_or_both"], sub["fatal"])
+    print("\nC2. Within -: Procedural(C/B) x Fatal:\n", tab2)
+
+    odds2, p2 = fisher_exact(tab2.values)
+    print(f"Fisher exact (- only): OR={odds2:0.2f}, p={p2:0.4f}")
+
+    # ------------------------------
+    # C3.  Logistic Regression
+    # ------------------------------
+    df = event_enriched.copy()
+    df["fatal"] = df["fatal"].astype(int)
+    df["is_scfnp"] = df["is_scfnp"].astype(int)
+    df["proc_cb"] = df["proc_cause_or_both"].astype(int)
+
+    model = smf.logit("fatal ~ is_scfnp + proc_cb + is_scfnp:proc_cb", data=df).fit(disp=False)
+    print(model.summary())
+    print("\nExponentiated coefficients (odds ratios):")
+    print(np.exp(model.params))
+
 
 if __name__ == "__main__":
     main()
